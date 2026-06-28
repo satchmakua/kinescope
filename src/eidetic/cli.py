@@ -1,0 +1,82 @@
+"""The `eidetic` CLI (DESIGN.md §6.7). M0 surface: `ls` and `show`.
+
+`replay`/`fork`/`ui` arrive in later milestones once there's an agent entry point and
+the TUI to drive them.
+"""
+
+from __future__ import annotations
+
+import json
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from .store.local import LocalStore
+
+app = typer.Typer(
+    help="Eidetic — deterministic record-replay for AI agents.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+console = Console()
+
+
+@app.command("ls")
+def ls(store: str = typer.Option(".eidetic", help="Trace store directory.")) -> None:
+    """List recorded runs."""
+    s = LocalStore(store)
+    runs = s.list_runs()
+    if not runs:
+        console.print(f"[dim]no runs in {store}/[/dim]")
+        raise typer.Exit()
+    table = Table(title=f"runs in {store}/")
+    for col in ("run id", "label", "status", "events", "diverge"):
+        table.add_column(col)
+    for r in runs:
+        n_events = len(s.events(r.run_id))
+        status_style = {"complete": "green", "diverged": "yellow", "error": "red"}.get(r.status, "")
+        table.add_row(
+            r.run_id,
+            r.label,
+            f"[{status_style}]{r.status}[/{status_style}]" if status_style else r.status,
+            str(n_events),
+            str(len(r.divergences)),
+        )
+    console.print(table)
+
+
+@app.command("show")
+def show(
+    run_id: str,
+    step: int | None = typer.Option(None, "--step", help="Show only this step (seq)."),
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+) -> None:
+    """Show a run's events (and a preview of each call's I/O)."""
+    s = LocalStore(store)
+    run = s.get_run(run_id)
+    events = s.events(run_id)
+    console.print(f"[bold]{run.label}[/bold]  {run.run_id}  ({run.status})")
+    if run.divergences:
+        console.print(f"[yellow]⚠ {len(run.divergences)} divergence(s)[/yellow]")
+    selected = [e for e in events if step is None or e.seq == step]
+    for ev in selected:
+        console.print(
+            f"\n[cyan]#{ev.seq}[/cyan] {ev.kind} [bold]{ev.name}[/bold]  ({ev.dur_ms:.0f}ms)"
+        )
+        if ev.input_ref:
+            console.print("  in :", _preview(s.get_blob(ev.input_ref)))
+        if ev.output_ref:
+            console.print("  out:", _preview(s.get_blob(ev.output_ref)))
+
+
+def _preview(blob: bytes, limit: int = 240) -> str:
+    try:
+        text = json.dumps(json.loads(blob), separators=(",", ":"))
+    except ValueError:
+        text = blob.decode("utf-8", "replace")
+    return text[:limit] + ("…" if len(text) > limit else "")
+
+
+if __name__ == "__main__":
+    app()
