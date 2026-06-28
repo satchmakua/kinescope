@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eidetic"
+version = "0.0.1"
+description = "rr for nondeterministic AI agents — deterministic record-replay and counterfactual branching."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Satchel Hamilton" }]
+keywords = ["llm", "agents", "debugging", "record-replay", "determinism", "anthropic"]
+
+# The core engine depends on httpx ONLY. Everything else is an extra — this is the
+# adoption lever (see DESIGN.md §3): `pip install eidetic` gives you record/replay.
+dependencies = ["httpx>=0.27,<1"]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.112,<1"]
+cli = ["typer>=0.12", "rich>=13"]
+tui = ["textual>=8.2,<9"]
+mongo = ["pymongo>=4.8,<5"]
+dev = [
+  "eidetic[anthropic,cli,tui]",
+  "pytest>=8",
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "build>=1.2",
+]
+
+[project.scripts]
+eidetic = "eidetic.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eidetic"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
