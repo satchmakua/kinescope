@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from .diff import diff_snapshots
 from .store.local import LocalStore
 
 app = typer.Typer(
@@ -58,7 +59,7 @@ def show(
     events = s.events(run_id)
     console.print(f"[bold]{run.label}[/bold]  {run.run_id}  ({run.status})")
     if run.divergences:
-        console.print(f"[yellow]⚠ {len(run.divergences)} divergence(s)[/yellow]")
+        console.print(f"[yellow](!) {len(run.divergences)} divergence(s)[/yellow]")
     selected = [e for e in events if step is None or e.seq == step]
     for ev in selected:
         console.print(
@@ -70,12 +71,37 @@ def show(
             console.print("  out:", _preview(s.get_blob(ev.output_ref)))
 
 
+@app.command("diff")
+def diff(
+    run_id: str,
+    a: int = typer.Argument(..., help="From step (seq)."),
+    b: int = typer.Argument(..., help="To step (seq)."),
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+) -> None:
+    """Show the state diff between two steps (uses the nearest preceding snapshots)."""
+    s = LocalStore(store)
+    try:
+        ops = diff_snapshots(s, run_id, a, b)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    if not ops:
+        console.print(f"[dim]no state change between step {a} and {b}[/dim]")
+        return
+    glyph = {"add": ("[green]", "+"), "remove": ("[red]", "-"), "replace": ("[yellow]", "~")}
+    console.print(f"state diff  step {a} -> {b}")
+    for op in ops:
+        style, sign = glyph[op["op"]]
+        val = "" if op["op"] == "remove" else f"  {json.dumps(op['value'])}"
+        console.print(f"  {style}{sign} {op['path']}{val}[/]")
+
+
 def _preview(blob: bytes, limit: int = 240) -> str:
     try:
         text = json.dumps(json.loads(blob), separators=(",", ":"))
     except ValueError:
         text = blob.decode("utf-8", "replace")
-    return text[:limit] + ("…" if len(text) > limit else "")
+    return text[:limit] + ("..." if len(text) > limit else "")
 
 
 if __name__ == "__main__":

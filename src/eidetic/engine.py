@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import contextlib
 import platform
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from time import time as _wall
 from typing import Any
 
@@ -36,11 +36,14 @@ def record(
     *,
     policy: Policy = "warn",
     capture: Any = (),
+    snapshot: Callable[[], Any] | None = None,
 ) -> Iterator[Session]:
     """Record the nondeterministic boundaries of the agent code run inside this block.
 
     `capture` opts into stdlib interception: any of "clock", "rng", "uuid" (or "all").
     Tool boundaries (`@eidetic.tool`) and HTTP/LLM boundaries are always captured.
+    `snapshot` is an optional zero-arg callable; if given, agent state is auto-snapshotted
+    after every LLM event (in addition to any explicit `eidetic.snapshot()` calls).
     """
     store = store or LocalStore()
     capture_kinds = normalize_capture(capture)
@@ -54,6 +57,7 @@ def record(
     )
     store.create_run(run)
     ses = Session(store=store, run=run, mode="record", policy=policy)
+    ses.snapshot_fn = snapshot
     patcher = StdlibPatcher(ses, capture_kinds)
     token = ses.activate()
     patcher.install()
@@ -117,6 +121,16 @@ def async_http_client(
     ses = _require_session()
     inner = inner if inner is not None else httpx.AsyncHTTPTransport()
     return httpx.AsyncClient(transport=EideticAsyncTransport(inner, ses), **kwargs)
+
+
+def snapshot(state: Any, label: str | None = None) -> None:
+    """Capture a content-addressed snapshot of document-shaped agent state at this point.
+
+    A no-op outside a session and during replay (the recorded snapshots are authoritative).
+    """
+    ses = active_session()
+    if ses is not None:
+        ses.take_snapshot(state, label=label)
 
 
 def _require_session() -> Session:
