@@ -74,11 +74,10 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
 
 ## Phase 4 — Reach (stretch; pick by signal)
 
-- [ ] **M5 — Beyond v1.** OpenAI adapter (validates the provider-agnostic schema) · OTel
-  `gen_ai.*` span export · `MongoStore` (`eidetic[mongo]`) · shareable/exportable trace
-  bundles · minimal web timeline.
-  **Test:** per sub-feature — e.g. record an OpenAI `chat.completions` call and replay it
-  deterministically through the same engine.
+- [ ] **M5 — Beyond v1.** Remaining reach items: OTel `gen_ai.*` span export ·
+  `MongoStore` (`eidetic[mongo]`) · shareable/exportable trace bundles · minimal web
+  timeline. (The OpenAI adapter — the headline schema-validation item — shipped as **H1**.)
+  **Test:** per sub-feature.
 
 ---
 
@@ -107,6 +106,6 @@ feels effortless, Eidetic is good.
 7. **Positioned** — one paragraph: who it's for, what it beats, why this not the obvious alternative.
 
 **Hardening items (Eidetic-specific):**
-- [ ] **H1 — Promote the OpenAI adapter out of "stretch" (M5 → now).** It is the only real test that the event schema is genuinely **provider-agnostic** — the abstraction is unproven with one provider. *Accept:* an OpenAI `chat.completions` call records + replays through the same engine with **no core schema change**; a recorded fixture proves it offline.
+- [x] **H1 — Promote the OpenAI adapter out of "stretch" (M5 → now).** It is the only real test that the event schema is genuinely **provider-agnostic** — the abstraction is unproven with one provider. *Accept:* an OpenAI `chat.completions` call records + replays through the same engine with **no core schema change**; a recorded fixture proves it offline. **Done:** provider normalizers live in `src/eidetic/adapters/` (dispatch by host, JSON-only, no SDK needed); the engine's only change was moving the hardcoded `gen_ai.system` into the adapter. The real `openai` 2.x SDK records+replays via `tests/fixtures/openai_chat.json` offline (`examples/openai_demo.py`, `tests/test_openai.py`); OpenAI `prompt/completion_tokens` normalize to the same `gen_ai.usage.*` as Anthropic's `input/output_tokens`. _(awaiting human confirm)_
 - [ ] **H2 — Determinism stress suite.** The product *is* correctness-of-replay — test it adversarially: interleaved **async** boundaries, **concurrent** tool calls, a **deliberately nondeterministic** agent the divergence detector MUST flag, and a **large-trace** (≥10k events) performance/scale check. *Accept:* all pass / are correctly flagged; replay throughput documented.
 - [ ] **H3 — Ship the flagship gif (with M4).** The fork-and-fix gif leads the README; `make demo` reproduces the branched run offline.

@@ -1,0 +1,15 @@
+{
+  "id": "chatcmpl-eidetic-fixture",
+  "object": "chat.completion",
+  "created": 1736600000,
+  "model": "gpt-4o-mini-2024-07-18",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "Hello from a recorded OpenAI run." },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 11, "completion_tokens": 8, "total_tokens": 19 }
+}

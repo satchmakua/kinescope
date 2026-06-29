@@ -7,8 +7,8 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 **The demo:** an agent fails a task; you scrub to the step where it picked the wrong tool, fork and override just that decision, and watch the branched run complete — fully reproducible from the recording.
 
 - **Local-first:** traces live in `.eidetic/` (SQLite index + content-addressed blobs). No external services.
-- **Tiny core:** the engine depends on `httpx` only; `anthropic`, the CLI, the TUI, and Mongo are optional extras.
-- **First adapter:** the Anthropic Messages API, intercepted at the httpx transport (provider-agnostic event schema; OpenAI next).
+- **Tiny core:** the engine depends on `httpx` only; `anthropic`, `openai`, the CLI, the TUI, and Mongo are optional extras.
+- **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives both the **Anthropic** Messages API and the **OpenAI** Chat Completions API — only the `gen_ai.*` metadata normalization differs (`src/eidetic/adapters/`).
 
 **Status:** **M0–M4 shipped (core product complete)** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), and a **timeline TUI** to scrub and fork-and-fix. See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
 
@@ -32,6 +32,7 @@ python examples\tool_agent.py      # a tool + clock + RNG + LLM agent, recorded 
 python examples\stateful_agent.py  # snapshots state across steps, then diffs it
 python examples\fork_demo.py       # fork-and-fix: override one step, watch the outcome change
 python examples\fork_demo_tui.py   # the same, in the timeline TUI — scrub, then press 'f'
+python examples\openai_demo.py     # the same engine recording a second provider (OpenAI)
 eidetic ls                         # list recorded runs (with fork lineage)
 eidetic show <run-id> [--step k]   # inspect a run's events and I/O
 eidetic diff <run-id> <a> <b>      # state diff between two steps
@@ -129,7 +130,7 @@ Every milestone in [ROADMAP.md](ROADMAP.md) ends with explicit **Test** steps.
 
 ## Tech stack
 
-Python 3.11+ · `httpx` transport interception · `anthropic` 0.112 (first adapter) · SQLite + content-addressed blobs · Typer (CLI) · Textual (TUI). Hexagonal/ports-and-adapters around a deterministic core.
+Python 3.11+ · `httpx` transport interception · `anthropic` 0.112 and `openai` 2.x adapters · SQLite + content-addressed blobs · Typer (CLI) · Textual (TUI). Hexagonal/ports-and-adapters around a deterministic core.
 
 ## License
 

@@ -5,8 +5,9 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Phase 4 next (M5 — reach: OpenAI adapter / OTel export / MongoStore /
-H1–H3 hardening). M0–M4 are in — the core product is complete.
+**Current phase:** Hardening — H1 (OpenAI/provider-agnostic) done; **H2 next** (determinism
+stress suite), then H3 (flagship gif) and the rest of M5 (OTel export · MongoStore · web).
+M0–M4 + H1 are in.
 
 ### State of the tree
 
@@ -17,6 +18,7 @@ H1–H3 hardening). M0–M4 are in — the core product is complete.
 | HTTP interception (sync + async, SSE) | `src/eidetic/intercept/http.py` | ✅ M1 |
 | Tool interception | `src/eidetic/intercept/tools.py` | ✅ M1 |
 | Clock/RNG/UUID interception | `src/eidetic/intercept/stdlib.py` | ✅ M1 |
+| Provider adapters (gen_ai.* normalize: anthropic + openai) | `src/eidetic/adapters/` | ✅ H1 |
 | record() / replay() / http_client() / snapshot() | `src/eidetic/engine.py` | ✅ M2 |
 | Branch engine (fork@k, override, replay→live) | `src/eidetic/branch.py` | ✅ M3 |
 | State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
@@ -24,6 +26,38 @@ H1–H3 hardening). M0–M4 are in — the core product is complete.
 | TraceStore port | `src/eidetic/store/base.py` | ✅ M0 · MongoStore → M5 |
 | CLI (`ls`, `show`, `diff`, `ui`) | `src/eidetic/cli.py` | ✅ M4 · `fork` runner → later |
 | Textual TUI (3-pane scrub/detail/diff + fork) | `src/eidetic/tui/` | ✅ M4 |
+
+---
+
+## H1 — OpenAI adapter: the provider-agnostic proof · built 2026-06-29 (awaiting human confirm)
+
+The headline hardening item: prove the event schema generalizes beyond Anthropic. It does —
+with **no core change** beyond moving one hardcoded string into an adapter.
+
+**What shipped**
+- **`src/eidetic/adapters/`** — `base.normalize_meta(url, req_body, resp_bytes)` dispatches by
+  request host to `anthropic.py` / `openai.py` normalizers (JSON-only, never raises, needs no
+  provider SDK installed). The engine's only change: `intercept/http.py` now calls
+  `normalize_meta(...)` instead of hardcoding `"gen_ai.system": "anthropic"`.
+- **OpenAI normalization** maps the wire differences to the shared OTel vocabulary:
+  `prompt_tokens → gen_ai.usage.input_tokens`, `completion_tokens → output_tokens`,
+  `choices[].finish_reason → gen_ai.response.finish_reasons`.
+- **`openai` optional extra** (resolved to 2.44.0, which accepts `http_client=`); added to dev.
+- **Offline artifact:** `tests/fixtures/openai_chat.json` — a representative captured response
+  the real `openai` SDK replays through the engine with zero network. `examples/openai_demo.py`
+  is the runnable second-provider demo.
+
+**Why it matters (positioning):** the interception lives at the httpx transport, so it was
+already provider-neutral; the open question was whether the *schema* was. The same record→
+replay→(fork) machinery now drives OpenAI unchanged — the abstraction is no longer "trust me
+with one provider."
+
+**Verified**
+- `pytest` → **38 passed** (added: `test_openai.py` real-SDK record/replay + meta normalization;
+  `test_adapters.py` anthropic/openai/unknown-host/streaming-body unit tests).
+- `ruff check .` clean · `mypy src` clean (20 files).
+- `python examples/openai_demo.py` → records + replays an OpenAI call identically, 0
+  divergences, with normalized `gen_ai.*` meta. All Anthropic examples/tests still green.
 
 ---
 
