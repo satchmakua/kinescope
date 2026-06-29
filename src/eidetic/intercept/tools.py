@@ -40,7 +40,7 @@ def tool(fn: F | None = None, *, name: str | None = None) -> Any:
             ident = {"name": tname, "args": list(args), "kwargs": kwargs}
             input_hash = canon_hash(ident)
 
-            if ses.should_replay():
+            if ses.should_replay(seq):
                 ev = ses.expect(seq, "tool", input_hash, name=tname)
                 return _load_recorded(ses, ev)
 

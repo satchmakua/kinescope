@@ -5,24 +5,63 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Phase 2 next (M3 — branching). M0 + M1 + M2 are in.
+**Current phase:** Phase 3 next (M4 — Timeline TUI + flagship demo). M0–M3 are in.
 
 ### State of the tree
 
 | Component | File | Status |
 |---|---|---|
 | Trace model + canonical hashing | `src/eidetic/model.py` | ✅ M0 |
-| Session (seq, suppression, divergence, snapshots) | `src/eidetic/session.py` | ✅ M2 |
+| Session (seq, suppression, divergence, snapshots, branch) | `src/eidetic/session.py` | ✅ M3 |
 | HTTP interception (sync + async, SSE) | `src/eidetic/intercept/http.py` | ✅ M1 |
 | Tool interception | `src/eidetic/intercept/tools.py` | ✅ M1 |
 | Clock/RNG/UUID interception | `src/eidetic/intercept/stdlib.py` | ✅ M1 |
 | record() / replay() / http_client() / snapshot() | `src/eidetic/engine.py` | ✅ M2 |
+| Branch engine (fork@k, override, replay→live) | `src/eidetic/branch.py` | ✅ M3 |
 | State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
 | LocalStore (SQLite + blobs) | `src/eidetic/store/local.py` | ✅ M0 |
 | TraceStore port | `src/eidetic/store/base.py` | ✅ M0 · MongoStore → M5 |
-| CLI (`ls`, `show`, `diff`) | `src/eidetic/cli.py` | ✅ M2 · replay/fork/ui → later |
-| Branch engine | `src/eidetic/branch.py` | ⏳ M3 |
+| CLI (`ls`, `show`, `diff`) | `src/eidetic/cli.py` | ✅ M3 (ls lineage) · `fork`/`ui` → later |
 | Textual TUI | `src/eidetic/tui/` | ⏳ M4 |
+
+---
+
+## M3 — Branching (the counterfactual hook) · built 2026-06-28 (awaiting human confirm)
+
+The novel feature: fork a run at step *k*, override that one event's output, and run the
+tail live to explore "what if this step had gone differently?".
+
+**What shipped**
+- **`eidetic.fork(parent_id, at=k, override={"output": ...})`** — a context manager
+  (mirrors `replay`). Re-run the agent inside it to drive the branch.
+- **The mechanism is elegant reuse:** fork pre-builds the child's event log as the parent's
+  events `0..k-1` copied verbatim plus event `k` with its **output blob swapped** for the
+  override, then runs a `branch`-mode Session that replays seq ≤ k (so the agent reaches the
+  fork point and receives the override) and goes **live** for seq > k. The *only* new engine
+  surface is `Session.should_replay(seq)` returning `seq <= fork_at` in branch mode — the
+  replay→live switch the M1/M2 seam anticipated.
+- Override works for any fork-point kind: tool/LLM/retrieval (output → blob) and clock/RNG
+  (scalar → `meta.value`). The overridden event is tagged `meta.overridden = True`.
+- **Lineage:** child records `parent_run_id`, `forked_at_seq`, `overrides`; `eidetic ls`
+  shows a "forked from" column. Branches are normal runs — themselves replayable and forkable.
+
+**Decisions / gotchas**
+- The prefix `0..k-1` is copied verbatim (blobs are content-addressed, so it's just event
+  rows pointing at shared blobs). The agent still re-executes the prefix to rebuild in-memory
+  state before the live tail — divergence in the prefix would be surfaced as usual.
+- Snapshots are NOT pre-copied; the agent's `snapshot()` calls re-create them in the child as
+  it runs (avoids `(run_id, after_seq)` collisions).
+- **CLI `fork` deferred.** Like CLI `replay`, it needs to re-run the user's agent program,
+  which requires an entry-point runner (`record -- <cmd>`) we haven't built. The library
+  `fork()` is the first-class path; `eidetic ls` shows the resulting lineage.
+
+**Verified**
+- `pytest` → **29 passed** (added: override + live tail flips outcome, prefix determinism with
+  a mid-run fork, branch is replayable, LLM-response override, out-of-range guard).
+- `ruff check .` clean · `mypy src` clean (14 files).
+- `python examples/fork_demo.py` → recorded `{'temp':30,'verdict':'cold'}`; fork@0 override
+  72 → `{'temp':72,'verdict':'warm'}` (live re-classify); child linked to parent, re-replays
+  identically with 0 divergences.
 
 ---
 

@@ -50,12 +50,16 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
 
 ## Phase 2 — The novel hook
 
-- [ ] **M3 — Branching (counterfactual).** `eidetic.fork(run_id, at=k, override=…)` and
-  `eidetic fork <id> --at k --override-tool '…'`: replay events `0..k-1`, substitute the
-  override as event `k`'s output, then flip to **live** for `seq > k`, recording a new child
-  run (`parent_run_id`, `forked_at_seq`, `overrides`). Branches are themselves replayable.
-  **Test:** fork a recorded failing run at the bad step, override that one tool result, and
-  the branched run completes differently; `eidetic ls` shows the child linked to its parent.
+- [x] **M3 — Branching (counterfactual).** `eidetic.fork(run_id, at=k, override={"output": …})`:
+  copies events `0..k-1`, swaps event `k`'s output for the override, replays that prefix, then
+  flips to **live** for `seq > k`, recording a new child run (`parent_run_id`, `forked_at_seq`,
+  `overrides`). Works for tool / LLM / clock / RNG fork points. Branches are themselves
+  replayable; `eidetic ls` shows the lineage. (CLI `fork` subcommand deferred — it needs an
+  agent entry-point runner, same as CLI `replay`.)
+  **Test:** `python examples\fork_demo.py` → records a faulty-sensor agent ("cold"), forks at
+  the sensor step, overrides the reading, and the live re-classify flips it to "warm"; the
+  child is linked to its parent and re-replays identically. `pytest` → green (override + live
+  tail, prefix determinism, replayable branch, LLM override, range check).
 
 ## Phase 3 — The product
 
@@ -79,3 +83,27 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
 step where it went wrong, forks-and-overrides that single decision, and watches the
 branched run succeed — all reproduced bit-for-bit from one local trace. If that loop
 feels effortless, Eidetic is good.
+
+---
+
+## Review-driven hardening — from *built* to *proven* (added 2026-06-28)
+
+> Added after an external code review (captured in `../ai-docs/project_eval/`). M3
+> branching — the differentiator — is now **done**; these items prove the abstraction
+> generalizes and stress the determinism guarantee the whole product rests on.
+> **Standing rule:** a milestone is checked only when it has produced **one real,
+> captured, reproducible artifact**, not merely passing unit tests.
+
+**Definition of Done — the "Sparkle Bar"** (applies to every milestone):
+1. **Real artifact captured** — produced against reality, pinned at the top of the README with the exact reproduce command.
+2. **Flagship demo in one screen** — the named demo shipped as a screenshot/gif.
+3. **Stress-tested** — property-based + failure-path + one scale test on the invariant-critical core, not just happy-path units.
+4. **Honest numbers** — CIs/bounds, a named baseline, an explicit "can't do" list.
+5. **Cold-clone reproducible** — pinned deps, fixed seeds, one `make demo`, CI runs the real-or-recorded path.
+6. **Polished** — no stray files, consistent docs, README opens with the artifact.
+7. **Positioned** — one paragraph: who it's for, what it beats, why this not the obvious alternative.
+
+**Hardening items (Eidetic-specific):**
+- [ ] **H1 — Promote the OpenAI adapter out of "stretch" (M5 → now).** It is the only real test that the event schema is genuinely **provider-agnostic** — the abstraction is unproven with one provider. *Accept:* an OpenAI `chat.completions` call records + replays through the same engine with **no core schema change**; a recorded fixture proves it offline.
+- [ ] **H2 — Determinism stress suite.** The product *is* correctness-of-replay — test it adversarially: interleaved **async** boundaries, **concurrent** tool calls, a **deliberately nondeterministic** agent the divergence detector MUST flag, and a **large-trace** (≥10k events) performance/scale check. *Accept:* all pass / are correctly flagged; replay throughput documented.
+- [ ] **H3 — Ship the flagship gif (with M4).** The fork-and-fix gif leads the README; `make demo` reproduces the branched run offline.

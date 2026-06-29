@@ -10,7 +10,7 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, the CLI, the TUI, and Mongo are optional extras.
 - **First adapter:** the Anthropic Messages API, intercepted at the httpx transport (provider-agnostic event schema; OpenAI next).
 
-**Status:** **M0–M2 shipped** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, and state snapshots with per-step diffs. See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
+**Status:** **M0–M3 shipped** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, and **counterfactual branching** (`fork` at any step, override one event, run the tail live). See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
 
 ---
 
@@ -30,7 +30,8 @@ See the record→replay loop end-to-end (offline — no API key, no network):
 python examples\record_demo.py     # records one Anthropic call, then replays it deterministically
 python examples\tool_agent.py      # a tool + clock + RNG + LLM agent, recorded and replayed
 python examples\stateful_agent.py  # snapshots state across steps, then diffs it
-eidetic ls                         # list recorded runs
+python examples\fork_demo.py       # fork-and-fix: override one step, watch the outcome change
+eidetic ls                         # list recorded runs (with fork lineage)
 eidetic show <run-id> [--step k]   # inspect a run's events and I/O
 eidetic diff <run-id> <a> <b>      # state diff between two steps
 ```
@@ -63,6 +64,11 @@ with eidetic.record("paris", capture=["clock", "rng"]) as rec:
 with eidetic.replay(rec.run_id) as rep:    # reproduce, offline & deterministic
     run_agent()
 assert not rep.divergences
+
+# counterfactual: override step k's output, then run the tail LIVE
+with eidetic.fork(rec.run_id, at=3, override={"output": {"temp_f": 71}}) as branch:
+    run_agent()                            # steps 0–2 replay; step 3 is overridden; 4+ go live
+print(branch.run_id)                       # a new child run, linked to its parent
 ```
 
 For async agents use `eidetic.async_http_client()` with `anthropic.AsyncAnthropic`.

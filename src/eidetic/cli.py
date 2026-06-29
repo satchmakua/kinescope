@@ -32,17 +32,19 @@ def ls(store: str = typer.Option(".eidetic", help="Trace store directory.")) -> 
         console.print(f"[dim]no runs in {store}/[/dim]")
         raise typer.Exit()
     table = Table(title=f"runs in {store}/")
-    for col in ("run id", "label", "status", "events", "diverge"):
+    for col in ("run id", "label", "status", "events", "diverge", "forked from"):
         table.add_column(col)
     for r in runs:
         n_events = len(s.events(r.run_id))
         status_style = {"complete": "green", "diverged": "yellow", "error": "red"}.get(r.status, "")
+        lineage = f"{r.parent_run_id}@{r.forked_at_seq}" if r.parent_run_id else "-"
         table.add_row(
             r.run_id,
             r.label,
             f"[{status_style}]{r.status}[/{status_style}]" if status_style else r.status,
             str(n_events),
             str(len(r.divergences)),
+            lineage,
         )
     console.print(table)
 

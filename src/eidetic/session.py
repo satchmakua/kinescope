@@ -14,7 +14,7 @@ from typing import Any, Literal
 from .model import BoundaryKind, Event, Run, Snapshot
 from .store.base import TraceStore
 
-Mode = Literal["record", "replay"]
+Mode = Literal["record", "replay", "branch"]
 Policy = Literal["strict", "warn", "off"]
 
 _active: ContextVar[Session | None] = ContextVar("eidetic_active_session", default=None)
@@ -47,6 +47,7 @@ class Session:
         self._suppress = 0  # >0 while inside a recorded tool body (nested boundaries skip)
         self._lock = threading.Lock()
         self.snapshot_fn: Callable[[], Any] | None = None  # auto-snapshot after each LLM event
+        self.fork_at = -1  # branch mode: replay seq<=fork_at (incl. the override), live after
 
     # --- identity / lifecycle -----------------------------------------------
 
@@ -77,10 +78,16 @@ class Session:
             self._seq += 1
             return seq
 
-    def should_replay(self) -> bool:
-        """Whether the current boundary returns a recorded output rather than calling
-        out. (M3 branching will make this false for the live tail after a fork.)"""
-        return self.mode == "replay"
+    def should_replay(self, seq: int) -> bool:
+        """Whether the boundary at `seq` returns a recorded output rather than calling out.
+
+        In `branch` mode the prefix (incl. the overridden fork point at `fork_at`) replays;
+        everything after goes live — this is the replay→live switch."""
+        if self.mode == "replay":
+            return True
+        if self.mode == "branch":
+            return seq <= self.fork_at
+        return False
 
     def suppressed(self) -> bool:
         return self._suppress > 0

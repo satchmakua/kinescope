@@ -82,7 +82,7 @@ class StdlibPatcher:
             if s.suppressed():
                 return orig(*args, **kwargs)
             seq = s.next_seq()
-            if s.should_replay():
+            if s.should_replay(seq):
                 ev = s.expect(seq, kind, "", name=name)  # type: ignore[arg-type]
                 return _cast_back(ev.meta.get("value"), ev.meta.get("cast"))
             val = orig(*args, **kwargs)
