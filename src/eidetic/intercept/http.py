@@ -19,6 +19,7 @@ from typing import Any
 
 import httpx
 
+from ..adapters import normalize_meta
 from ..model import REDACT_HEADERS, Event, canon_hash
 from ..session import Session
 
@@ -83,6 +84,9 @@ def _persist(
     dur_ms: float,
     input_hash: str,
 ) -> None:
+    meta = normalize_meta(str(request.url), _decode_body(request.content), raw)
+    meta["http.status"] = status_code
+    meta["resp_headers"] = headers
     s.record_event(
         Event(
             run_id=s.run_id,
@@ -95,11 +99,7 @@ def _persist(
             status="ok" if status_code < 400 else "error",
             ts_wall=_wall(),
             dur_ms=dur_ms,
-            meta={
-                "http.status": status_code,
-                "resp_headers": headers,
-                "gen_ai.system": "anthropic",
-            },
+            meta=meta,
         )
     )
 
