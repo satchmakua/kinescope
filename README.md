@@ -9,6 +9,7 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 - **Local-first:** traces live in `.eidetic/` (SQLite index + content-addressed blobs). No external services.
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, `openai`, the CLI, the TUI, and Mongo are optional extras.
 - **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives both the **Anthropic** Messages API and the **OpenAI** Chat Completions API — only the `gen_ai.*` metadata normalization differs (`src/eidetic/adapters/`).
+- **Interoperable:** event metadata follows the **OpenTelemetry GenAI** conventions, so any recorded run exports as `gen_ai.*` spans (`eidetic export-otel`) into existing observability backends (Phoenix, Langfuse, …).
 
 **Status:** **M0–M4 shipped (core product complete)** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), and a **timeline TUI** to scrub and fork-and-fix. See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
 
@@ -33,10 +34,12 @@ python examples\stateful_agent.py  # snapshots state across steps, then diffs it
 python examples\fork_demo.py       # fork-and-fix: override one step, watch the outcome change
 python examples\fork_demo_tui.py   # the same, in the timeline TUI — scrub, then press 'f'
 python examples\openai_demo.py     # the same engine recording a second provider (OpenAI)
+python examples\otel_export.py     # export a recorded run as OpenTelemetry gen_ai spans
 eidetic ls                         # list recorded runs (with fork lineage)
 eidetic show <run-id> [--step k]   # inspect a run's events and I/O
 eidetic diff <run-id> <a> <b>      # state diff between two steps
 eidetic ui <run-id>                # scrub the timeline TUI (view-only)
+eidetic export-otel <run-id>       # emit OpenTelemetry gen_ai.* spans to the console
 ```
 
 ### The timeline (TUI)
@@ -127,6 +130,16 @@ Every milestone in [ROADMAP.md](ROADMAP.md) ends with explicit **Test** steps.
 | [PROGRESS.md](PROGRESS.md) | Build log: what shipped each milestone and why. |
 | [`docs/`](docs/) | Deeper docs and architecture decisions (ADRs). |
 | [Eidetic-Foundational-Doc.md](Eidetic-Foundational-Doc.md) | The original thesis the design grew from. |
+
+## Determinism, honestly (limitations)
+
+Determinism is guaranteed **at recorded boundaries**, and leaks are *surfaced*, not hidden — the divergence detector flags input/order/count mismatches (`strict` raises, `warn` continues). Known limits:
+
+- **One recording context per run.** The active session is a contextvar, so boundaries on worker threads that don't inherit it are **not captured** — and since they never enter the sequence, the detector can't flag them. Single-thread or `asyncio` (tasks inherit the context) is the supported model.
+- **Concurrent boundary ordering** (`asyncio.gather`) may differ between record and replay; when it does, replay is **flagged, never silently wrong**.
+- **Streaming replays batched** — SSE is reproduced by content, not re-timed.
+- **Clock/RNG capture is opt-in** (`record(capture=[...])`); it monkeypatches `time`/`random`/`uuid`, so library calls to those are captured too (and replay deterministically as long as the library's call pattern is stable).
+- **Throughput:** inline (clock/RNG) events record at ~20k–190k/s (cache-warmth dependent) and replay faster — 10k events record+replay in well under a second; tool/LLM events are bound by per-payload blob writes (~1k/s for distinct payloads; identical payloads dedup for free).
 
 ## Tech stack
 

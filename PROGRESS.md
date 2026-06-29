@@ -5,9 +5,9 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Hardening — H1 (OpenAI/provider-agnostic) done; **H2 next** (determinism
-stress suite), then H3 (flagship gif) and the rest of M5 (OTel export · MongoStore · web).
-M0–M4 + H1 are in.
+**Current phase:** Hardening + reach — H1 (OpenAI), H2 (stress suite), and M5's OTel export
+done. **Remaining:** H3 (flagship gif — human-recorded) · `MongoStore` · web timeline. M0–M4
++ H1 + H2 + OTel are in.
 
 ### State of the tree
 
@@ -19,6 +19,7 @@ M0–M4 + H1 are in.
 | Tool interception | `src/eidetic/intercept/tools.py` | ✅ M1 |
 | Clock/RNG/UUID interception | `src/eidetic/intercept/stdlib.py` | ✅ M1 |
 | Provider adapters (gen_ai.* normalize: anthropic + openai) | `src/eidetic/adapters/` | ✅ H1 |
+| OTel gen_ai span export | `src/eidetic/export/otel.py` | ✅ M5 |
 | record() / replay() / http_client() / snapshot() | `src/eidetic/engine.py` | ✅ M2 |
 | Branch engine (fork@k, override, replay→live) | `src/eidetic/branch.py` | ✅ M3 |
 | State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
@@ -26,6 +27,77 @@ M0–M4 + H1 are in.
 | TraceStore port | `src/eidetic/store/base.py` | ✅ M0 · MongoStore → M5 |
 | CLI (`ls`, `show`, `diff`, `ui`) | `src/eidetic/cli.py` | ✅ M4 · `fork` runner → later |
 | Textual TUI (3-pane scrub/detail/diff + fork) | `src/eidetic/tui/` | ✅ M4 |
+
+---
+
+## M5 (slice) — OTel `gen_ai.*` span export · built 2026-06-29 (awaiting human confirm)
+
+Delivered on the design's standing promise (§4.3) that `Event.meta` is OTel-aligned "so a
+future export path is cheap" — it is.
+
+**What shipped**
+- **`eidetic.export_otel(run_id, store=None, tracer_provider=None)`** (`src/eidetic/export/otel.py`)
+  — emits one parent `eidetic.run` span with a child per LLM (`chat {model}`) and tool
+  (`execute_tool {name}`) boundary, carrying the recorded `gen_ai.*` attributes and the
+  recorded wall-clock start/end times. Returns the gen_ai-span count.
+- **`eidetic export-otel <id>`** CLI → prints spans via OTel's `ConsoleSpanExporter` (lazy
+  import; friendly error without the `otel` extra).
+- **`otel` optional extra** (`opentelemetry-sdk`); `opentelemetry` is imported only when
+  `export_otel` runs, so the core stays dependency-light.
+
+**Why it matters:** every observability backend I surveyed (Phoenix, Langfuse, LangSmith,
+Laminar) ingests OTel GenAI spans — so a recorded Eidetic trace drops into the existing
+ecosystem with no glue. It also confirms the `gen_ai.*` normalization (H1) is real output,
+not just stored strings.
+
+**Verified**
+- `pytest` → **47 passed** (added `test_otel.py`: span names, `gen_ai.*` attributes incl.
+  `finish_reasons`, parent/child structure, and recorded-timing fidelity via an in-memory
+  exporter).
+- `ruff` clean · `mypy` clean (22 files).
+- `python examples/otel_export.py` and `eidetic export-otel <id>` both print real spans
+  (`chat claude-opus-4-8`, `execute_tool search`, `eidetic.run`).
+
+---
+
+## H2 — Determinism stress suite · built 2026-06-29 (awaiting human confirm)
+
+Stressed the one guarantee everything rests on — correctness-of-replay — and turned up a
+real perf bug along the way.
+
+**What shipped** (`tests/test_stress.py`, 7 tests)
+- **Async ordering:** sequential async boundaries replay byte-identical, 0 divergences.
+- **Concurrency honesty:** `asyncio.gather`-fired boundaries are *never silently wrong* —
+  replay is identical-or-flagged (the documented contract for concurrent ordering).
+- **Reordering flagged:** boundaries fired in a different order on replay → input-mismatch
+  divergence (the concurrency hazard is caught, not hidden).
+- **Hidden nondeterminism flagged:** an input that changes out from under replay (un-captured
+  source) → divergence at the right step.
+- **Property check:** 25 randomly-structured deterministic agents (rng/clock/tool mixes,
+  `capture="all"`) each replay faithfully with 0 divergences.
+- **Scale:** 10k inline (rng) boundaries record + replay reproducing every value exactly.
+
+**Perf bug found + fixed.** `LocalStore.append_event` was committing per event — one fsync
+per boundary throttled record to **~700–1,800 events/s**. Events are now buffered on the
+connection and flushed by a new `commit()` that the engine calls when a session closes
+(`update_run` already ran in every `finally`; `commit()` makes it explicit). Record throughput
+for inline events jumped ~10–100× to **~20k–190k/s** (cache-warmth dependent; 10k events in
+~0.05–0.55s); replay **~130–165k/s** (~0.06–0.08s). Trade: a crashed recording loses its
+in-flight tail — fine for a debugger.
+
+**Honest numbers / "can't do":**
+- Inline events (clock/RNG): ~20k–190k/s record (warmth-dependent), >130k/s replay; 10k
+  events record+replay in <1s either way.
+- Tool/LLM events are bound by **blob writes** (gzip + a file per *distinct* payload):
+  ~1k/s for 10k distinct outputs; identical payloads dedup to zero cost. (Future: inline
+  small blobs in SQLite.)
+- **Thread-scoped capture is a real gap** (pinned by `test_worker_thread_boundaries_are_not_
+  captured`): the session is a contextvar, so boundaries on worker threads that don't inherit
+  it are NOT captured — and since they never enter the seq stream, the divergence detector
+  can't flag them. Record on one thread / async-context per run. (asyncio tasks DO inherit
+  the context, so single-thread async is fine.)
+
+**Verified:** `pytest` → **45 passed**; `ruff` clean; `mypy` clean (20 files); all examples green.
 
 ---
 

@@ -26,3 +26,6 @@ class TraceStore(Protocol):
 
     def put_blob(self, data: bytes | Any) -> str: ...
     def get_blob(self, blob_id: str) -> bytes: ...
+
+    def commit(self) -> None:
+        """Flush buffered writes durably. Called when a record/replay session closes."""

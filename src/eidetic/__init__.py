@@ -25,6 +25,7 @@ from typing import Any
 from .branch import fork
 from .diff import diff_snapshots, json_diff
 from .engine import async_http_client, http_client, record, replay, snapshot
+from .export import export_otel  # opentelemetry imported lazily, only when called
 from .intercept import instrument_tools, tool
 from .model import Event, Run, Snapshot
 from .session import DivergenceError, Session, active_session
@@ -58,6 +59,7 @@ __all__ = [
     "instrument_tools",
     "snapshot",
     "ui",
+    "export_otel",
     "json_diff",
     "diff_snapshots",
     "LocalStore",
