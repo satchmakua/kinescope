@@ -5,7 +5,8 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Phase 3 next (M4 — Timeline TUI + flagship demo). M0–M3 are in.
+**Current phase:** Phase 4 next (M5 — reach: OpenAI adapter / OTel export / MongoStore /
+H1–H3 hardening). M0–M4 are in — the core product is complete.
 
 ### State of the tree
 
@@ -21,8 +22,44 @@ got done and why" companion.
 | State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
 | LocalStore (SQLite + blobs) | `src/eidetic/store/local.py` | ✅ M0 |
 | TraceStore port | `src/eidetic/store/base.py` | ✅ M0 · MongoStore → M5 |
-| CLI (`ls`, `show`, `diff`) | `src/eidetic/cli.py` | ✅ M3 (ls lineage) · `fork`/`ui` → later |
-| Textual TUI | `src/eidetic/tui/` | ⏳ M4 |
+| CLI (`ls`, `show`, `diff`, `ui`) | `src/eidetic/cli.py` | ✅ M4 · `fork` runner → later |
+| Textual TUI (3-pane scrub/detail/diff + fork) | `src/eidetic/tui/` | ✅ M4 |
+
+---
+
+## M4 — Timeline TUI + flagship demo · built 2026-06-29 (awaiting human confirm)
+
+The product surface: a scrubbable terminal timeline where the fork-and-fix loop is visible.
+
+**What shipped**
+- **`EideticApp`** (Textual) — three panes: STEPS (event log, kind-colored, `fork`/`!`
+  markers) · DETAIL (input/output/meta of the highlighted step) · DIFF (state delta vs. the
+  previous snapshot, reusing `json_diff`). ↑/↓ scrub, `r` reload, `q` quit.
+- **`f` fork-and-run** — opens a modal prefilled with override JSON; on submit it runs
+  `eidetic.fork(...)` with the supplied agent, then switches the view to the new child run.
+  Without an agent (e.g. `eidetic ui <id>`) it warns instead of forking — honest about the
+  CLI's inability to re-run arbitrary agent code.
+- **`eidetic ui <run-id>`** CLI (lazy `textual` import → friendly error if the extra is
+  missing) and **`eidetic.ui(run_id, agent=..., default_override=...)`** API.
+- **Artifact:** [docs/timeline.svg](docs/timeline.svg) — a captured screenshot of the branched
+  run (sensor `fork`-marked, classify showing `72 → "warm"`, the `verdict` diff, parent
+  lineage). `examples/fork_demo_tui.py` is the interactive version.
+
+**Decisions / gotchas**
+- **Textual 8.2.7 has no `Static.renderable` accessor.** Rather than depend on widget
+  internals, the app stashes the current panes' `Text` on `self.last_detail`/`self.last_diff`
+  for tests/introspection.
+- TUI tests run **headless via Textual's pilot**, wrapped in `asyncio.run` so there's no
+  `pytest-asyncio` dependency.
+- `f` is wired to `do_fork(at, override)` (also the tested entry point); the modal is the
+  interactive front-end to it.
+
+**Verified**
+- `pytest` → **32 passed** (added: scrub updates detail+diff panes with correct content; `f`
+  forks → linked child + view switches; no-agent fork warns, doesn't crash).
+- `ruff check .` clean · `mypy src` clean (16 files).
+- Generated `docs/timeline.svg` headlessly; `eidetic ui --help` works; all four
+  non-interactive examples still green.
 
 ---
 

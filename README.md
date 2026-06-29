@@ -10,7 +10,7 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, the CLI, the TUI, and Mongo are optional extras.
 - **First adapter:** the Anthropic Messages API, intercepted at the httpx transport (provider-agnostic event schema; OpenAI next).
 
-**Status:** **M0–M3 shipped** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, and **counterfactual branching** (`fork` at any step, override one event, run the tail live). See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
+**Status:** **M0–M4 shipped (core product complete)** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), and a **timeline TUI** to scrub and fork-and-fix. See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
 
 ---
 
@@ -31,9 +31,28 @@ python examples\record_demo.py     # records one Anthropic call, then replays it
 python examples\tool_agent.py      # a tool + clock + RNG + LLM agent, recorded and replayed
 python examples\stateful_agent.py  # snapshots state across steps, then diffs it
 python examples\fork_demo.py       # fork-and-fix: override one step, watch the outcome change
+python examples\fork_demo_tui.py   # the same, in the timeline TUI — scrub, then press 'f'
 eidetic ls                         # list recorded runs (with fork lineage)
 eidetic show <run-id> [--step k]   # inspect a run's events and I/O
 eidetic diff <run-id> <a> <b>      # state diff between two steps
+eidetic ui <run-id>                # scrub the timeline TUI (view-only)
+```
+
+### The timeline (TUI)
+
+`eidetic ui <run-id>` opens a three-pane timeline — steps · detail · state diff — that you
+scrub with ↑/↓. Launched with an agent (`eidetic.ui(run_id, agent=run_agent)`), `f` forks the
+highlighted step, overrides its output, and runs the tail live — the fork-and-fix loop:
+
+[**View a timeline screenshot →**](docs/timeline.svg)
+
+```
+┌ Eidetic ── weather#fork@0  …  ⑂ from <parent>@0 ───────────────────────────────────┐
+│ seq kind  name        │ #1 tool classify              │ state diff (sensed → …)     │
+│  0  tool  sensor  fork│ ok · 0ms                      │ ~ /verdict   "warm"         │
+│ ▸1  tool  classify    │ input  [72]                   │                             │
+│                       │ output "warm"                 │                             │
+└ ↑/↓ scrub · f fork · q quit ───────────────────────────────────────────────────────┘
 ```
 
 Both examples use the real Anthropic SDK wired through an Eidetic transport with a stub

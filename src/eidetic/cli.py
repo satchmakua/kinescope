@@ -98,6 +98,20 @@ def diff(
         console.print(f"  {style}{sign} {op['path']}{val}[/]")
 
 
+@app.command("ui")
+def ui(
+    run_id: str,
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+) -> None:
+    """Open the timeline TUI to scrub a run (view-only; fork via eidetic.ui(..., agent=...))."""
+    try:
+        from .tui.app import run_tui
+    except ModuleNotFoundError as exc:
+        console.print("[red]The TUI needs the 'tui' extra:  pip install eidetic[tui][/red]")
+        raise typer.Exit(1) from exc
+    run_tui(run_id, LocalStore(store))
+
+
 def _preview(blob: bytes, limit: int = 240) -> str:
     try:
         text = json.dumps(json.loads(blob), separators=(",", ":"))

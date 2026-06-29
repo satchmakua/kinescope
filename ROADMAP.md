@@ -63,11 +63,14 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
 
 ## Phase 3 — The product
 
-- [ ] **M4 — Timeline TUI + flagship demo.** A Textual three-pane app (`eidetic ui <id>`):
-  steps list · message/tool I/O detail · state diff; `f` to fork. Polish divergence display.
-  Build `examples/weather_agent.py` (picks the wrong tool) and record the fork-and-fix gif.
-  **Test:** `eidetic ui <id>` opens; arrow keys scrub; selecting a step shows its I/O and the
-  diff vs. the previous snapshot; `f` forks and the new run appears.
+- [x] **M4 — Timeline TUI + flagship demo.** A Textual three-pane app (`eidetic ui <id>` /
+  `eidetic.ui(run_id, agent=...)`): steps list (fork/divergence markers) · detail (input/
+  output/meta) · state diff vs. previous snapshot; ↑/↓ scrub, `f` fork-and-run-live. Captured
+  a timeline screenshot ([docs/timeline.svg](docs/timeline.svg)); `examples/fork_demo_tui.py`
+  is the interactive fork-and-fix.
+  **Test:** `pytest tests/test_tui.py` (headless via Textual pilot) → scrubbing updates the
+  detail/diff panes; `f` with an agent forks, creates a linked child, and the app switches to
+  it; `f` without an agent warns instead of crashing. _(verified at build time; awaiting human confirm)_
 
 ## Phase 4 — Reach (stretch; pick by signal)
 
