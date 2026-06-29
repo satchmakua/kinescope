@@ -116,7 +116,7 @@ class EideticTransport(httpx.BaseTransport):
             return self._inner.handle_request(request)
         seq = self._s.next_seq()
         input_hash = canon_hash(_identity(request))
-        if self._s.should_replay():
+        if self._s.should_replay(seq):
             return _replay_response(self._s, seq, request, input_hash)
 
         request.read()
@@ -144,7 +144,7 @@ class EideticAsyncTransport(httpx.AsyncBaseTransport):
             return await self._inner.handle_async_request(request)
         seq = self._s.next_seq()
         input_hash = canon_hash(_identity(request))
-        if self._s.should_replay():
+        if self._s.should_replay(seq):
             return _replay_response(self._s, seq, request, input_hash)
 
         await request.aread()

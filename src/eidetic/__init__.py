@@ -19,6 +19,7 @@ Quickstart::
 
 from __future__ import annotations
 
+from .branch import fork
 from .diff import diff_snapshots, json_diff
 from .engine import async_http_client, http_client, record, replay, snapshot
 from .intercept import instrument_tools, tool
@@ -31,6 +32,7 @@ __version__ = "0.0.1"
 __all__ = [
     "record",
     "replay",
+    "fork",
     "http_client",
     "async_http_client",
     "tool",
