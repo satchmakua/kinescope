@@ -5,9 +5,10 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Hardening + reach — H1 (OpenAI), H2 (stress suite), and M5's OTel export
-done. **Remaining:** H3 (flagship gif — human-recorded) · `MongoStore` · web timeline. M0–M4
-+ H1 + H2 + OTel are in.
+**Current phase:** Hardening + reach — H1 (OpenAI), H2 (stress suite), and M5's OTel export,
+`MongoStore`, and shareable trace bundles all done. **Remaining:** H3 (flagship gif —
+human-recorded) · minimal web timeline (deprioritized). M0–M4 + H1 + H2 + OTel + Mongo +
+bundles are in — feature-complete for v1 plus most of the reach.
 
 ### State of the tree
 
@@ -20,13 +21,59 @@ done. **Remaining:** H3 (flagship gif — human-recorded) · `MongoStore` · web
 | Clock/RNG/UUID interception | `src/eidetic/intercept/stdlib.py` | ✅ M1 |
 | Provider adapters (gen_ai.* normalize: anthropic + openai) | `src/eidetic/adapters/` | ✅ H1 |
 | OTel gen_ai span export | `src/eidetic/export/otel.py` | ✅ M5 |
+| Shareable trace bundles (export/import) | `src/eidetic/export/bundle.py` | ✅ M5 |
 | record() / replay() / http_client() / snapshot() | `src/eidetic/engine.py` | ✅ M2 |
 | Branch engine (fork@k, override, replay→live) | `src/eidetic/branch.py` | ✅ M3 |
 | State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
 | LocalStore (SQLite + blobs) | `src/eidetic/store/local.py` | ✅ M0 |
-| TraceStore port | `src/eidetic/store/base.py` | ✅ M0 · MongoStore → M5 |
+| TraceStore port | `src/eidetic/store/base.py` | ✅ M0 |
+| MongoStore (document-DB backend) | `src/eidetic/store/mongo.py` | ✅ M5 |
 | CLI (`ls`, `show`, `diff`, `ui`) | `src/eidetic/cli.py` | ✅ M4 · `fork` runner → later |
 | Textual TUI (3-pane scrub/detail/diff + fork) | `src/eidetic/tui/` | ✅ M4 |
+
+---
+
+## M5 (slice) — Shareable trace bundles · built 2026-06-29 (awaiting human confirm)
+
+Hand a failing run to someone else: export it whole, import it anywhere, replay/fork it there.
+
+**What shipped**
+- **`eidetic.export_bundle(run_id, path, store=None)` / `import_bundle(path, store=None)`**
+  (`src/eidetic/export/bundle.py`) — a zip with `manifest.json` (run + events + snapshots) and
+  every referenced blob. Content-addressed blobs mean the event/snapshot refs stay valid after
+  import; versioned (`bundle_version`) and stdlib-only (`zipfile`), so it's core, not an extra.
+- **`eidetic export <id> <path>` / `eidetic import <path>`** CLI.
+
+**Verified**
+- `pytest` → **54 passed** (added `test_bundle.py`): a run exported from one store imports into
+  a *fresh* store and replays identically (0 divergences); the imported run is **forkable**;
+  unknown `bundle_version` is rejected.
+- `ruff` clean · `mypy` clean (24 files). `python examples/share_bundle.py` and the
+  `eidetic export`/`import` CLI roundtrip both work offline.
+
+---
+
+## M5 (slice) — MongoStore: the second backend · built 2026-06-29 (awaiting human confirm)
+
+The storage analog of H1: if the same engine runs against a totally different backend with
+**zero engine changes**, the `TraceStore` port (the design's other load-bearing abstraction)
+is real — not just LocalStore wearing an interface.
+
+**What shipped**
+- **`src/eidetic/store/mongo.py`** — `MongoStore` mapping Run/Event/Snapshot to collection
+  documents and content-addressed, gzipped, deduplicated blobs (`_id` = BLAKE2b). `commit()`
+  is a no-op (Mongo writes are durable on ack). Construct from a URI/`pymongo` client, or
+  inject any compatible client. Requires the `mongo` extra.
+- **Gotcha handled:** MongoDB historically disallows dots in field *names*, and our `meta`
+  keys are dotted (`gen_ai.system`, `http.status`). So `meta` is stored as a JSON string
+  (everything else — overrides/divergences/sdk_versions/capture — has safe keys, stored
+  native). Round-trips verified.
+
+**Verified**
+- `pytest` → **51 passed** (added `test_mongo.py`, hermetic via `mongomock`): record→replay
+  determinism, fork + lineage + override marker, blob dedup, and dotted-key `meta` round-trip
+  — all through `MongoStore` with the engine untouched.
+- `ruff` clean · `mypy` clean (23 files).
 
 ---
 

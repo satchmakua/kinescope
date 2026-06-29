@@ -6,7 +6,7 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 
 **The demo:** an agent fails a task; you scrub to the step where it picked the wrong tool, fork and override just that decision, and watch the branched run complete — fully reproducible from the recording.
 
-- **Local-first:** traces live in `.eidetic/` (SQLite index + content-addressed blobs). No external services.
+- **Local-first, pluggable:** traces live in `.eidetic/` (SQLite index + content-addressed blobs) by default — no external services; a `MongoStore` backend (`eidetic[mongo]`) drops in via the same `TraceStore` port.
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, `openai`, the CLI, the TUI, and Mongo are optional extras.
 - **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives both the **Anthropic** Messages API and the **OpenAI** Chat Completions API — only the `gen_ai.*` metadata normalization differs (`src/eidetic/adapters/`).
 - **Interoperable:** event metadata follows the **OpenTelemetry GenAI** conventions, so any recorded run exports as `gen_ai.*` spans (`eidetic export-otel`) into existing observability backends (Phoenix, Langfuse, …).
@@ -35,11 +35,14 @@ python examples\fork_demo.py       # fork-and-fix: override one step, watch the 
 python examples\fork_demo_tui.py   # the same, in the timeline TUI — scrub, then press 'f'
 python examples\openai_demo.py     # the same engine recording a second provider (OpenAI)
 python examples\otel_export.py     # export a recorded run as OpenTelemetry gen_ai spans
+python examples\share_bundle.py    # export a run to a zip, import it elsewhere, replay it
 eidetic ls                         # list recorded runs (with fork lineage)
 eidetic show <run-id> [--step k]   # inspect a run's events and I/O
 eidetic diff <run-id> <a> <b>      # state diff between two steps
 eidetic ui <run-id>                # scrub the timeline TUI (view-only)
 eidetic export-otel <run-id>       # emit OpenTelemetry gen_ai.* spans to the console
+eidetic export <run-id> run.zip    # package a run into a shareable bundle
+eidetic import run.zip             # load a bundle into the local store
 ```
 
 ### The timeline (TUI)

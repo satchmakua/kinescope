@@ -75,12 +75,14 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
 ## Phase 4 — Reach (stretch; pick by signal)
 
 - [~] **M5 — Beyond v1.** OpenAI adapter (shipped as **H1**) ✓ · **OTel `gen_ai.*` span
-  export** ✓ (`eidetic.export_otel` / `eidetic export-otel`: a recorded run → one `eidetic.run`
-  parent span + `chat {model}`/`execute_tool {name}` children with recorded timings and
-  `gen_ai.*` attributes; verified offline against an in-memory exporter). Remaining: `MongoStore`
-  (`eidetic[mongo]`) · shareable/exportable trace bundles · minimal web timeline.
-  **Test:** `python examples\otel_export.py` / `eidetic export-otel <id>` → prints the spans;
-  `pytest tests/test_otel.py` → green. _(OTel slice verified; awaiting human confirm)_
+  export** ✓ (`eidetic.export_otel` / `eidetic export-otel`) · **`MongoStore`** ✓
+  (`eidetic[mongo]` — a document-DB backend; the same record/replay/fork engine runs against
+  it unchanged, proving the `TraceStore` port generalizes; tested hermetically with mongomock) ·
+  **shareable trace bundles** ✓ (`eidetic.export_bundle`/`import_bundle`, `eidetic export`/`import`:
+  zip a run's events+snapshots+blobs; imports into any store and stays replayable/forkable —
+  stdlib-only). Remaining: minimal web timeline (deprioritized vs. the TUI).
+  **Test:** `pytest tests/test_otel.py tests/test_mongo.py tests/test_bundle.py` → green;
+  `python examples\share_bundle.py` → export→import→replay across stores. _(verified; awaiting human confirm)_
 
 ---
 
