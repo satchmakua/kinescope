@@ -98,6 +98,31 @@ def diff(
         console.print(f"  {style}{sign} {op['path']}{val}[/]")
 
 
+@app.command("export")
+def export_cmd(
+    run_id: str,
+    path: str = typer.Argument(..., help="Output bundle path (.zip)."),
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+) -> None:
+    """Export a run to a portable, shareable bundle (events + snapshots + blobs)."""
+    from .export.bundle import export_bundle
+
+    out = export_bundle(run_id, path, LocalStore(store))
+    console.print(f"wrote {out} ({out.stat().st_size:,} bytes)")
+
+
+@app.command("import")
+def import_cmd(
+    path: str = typer.Argument(..., help="Bundle path to import."),
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+) -> None:
+    """Import a trace bundle into the local store (replayable/forkable afterward)."""
+    from .export.bundle import import_bundle
+
+    run_id = import_bundle(path, LocalStore(store))
+    console.print(f"imported run {run_id}")
+
+
 @app.command("export-otel")
 def export_otel_cmd(
     run_id: str,
