@@ -19,6 +19,9 @@ Quickstart::
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from .branch import fork
 from .diff import diff_snapshots, json_diff
 from .engine import async_http_client, http_client, record, replay, snapshot
@@ -29,6 +32,22 @@ from .store import LocalStore, TraceStore
 
 __version__ = "0.0.1"
 
+
+def ui(
+    run_id: str,
+    store: TraceStore | None = None,
+    agent: Callable[[], Any] | None = None,
+    default_override: dict[str, Any] | None = None,
+) -> None:
+    """Launch the timeline TUI (lazily imports the optional `textual` extra).
+
+    Pass `agent` (a zero-arg callable that re-runs your agent) to enable fork-and-run.
+    """
+    from .tui.app import run_tui
+
+    run_tui(run_id, store=store, agent=agent, default_override=default_override)
+
+
 __all__ = [
     "record",
     "replay",
@@ -38,6 +57,7 @@ __all__ = [
     "tool",
     "instrument_tools",
     "snapshot",
+    "ui",
     "json_diff",
     "diff_snapshots",
     "LocalStore",
