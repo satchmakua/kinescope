@@ -10,7 +10,7 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, the CLI, the TUI, and Mongo are optional extras.
 - **First adapter:** the Anthropic Messages API, intercepted at the httpx transport (provider-agnostic event schema; OpenAI next).
 
-**Status:** **M0 + M1 shipped** — deterministic record→replay across the full nondeterministic frontier: LLM calls (sync, async, and SSE streaming), `@eidetic.tool` calls, and opt-in clock/RNG/UUID capture, with an honest divergence detector. See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
+**Status:** **M0–M2 shipped** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, and state snapshots with per-step diffs. See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
 
 ---
 
@@ -29,8 +29,10 @@ See the record→replay loop end-to-end (offline — no API key, no network):
 ```powershell
 python examples\record_demo.py     # records one Anthropic call, then replays it deterministically
 python examples\tool_agent.py      # a tool + clock + RNG + LLM agent, recorded and replayed
+python examples\stateful_agent.py  # snapshots state across steps, then diffs it
 eidetic ls                         # list recorded runs
-eidetic show <run-id>              # inspect a run's events and I/O
+eidetic show <run-id> [--step k]   # inspect a run's events and I/O
+eidetic diff <run-id> <a> <b>      # state diff between two steps
 ```
 
 Both examples use the real Anthropic SDK wired through an Eidetic transport with a stub

@@ -40,12 +40,13 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   replays it identically with 0 divergences; `pytest` → green (tools, stdlib, async,
   streaming, divergence). _(verified at build time; awaiting human confirm)_
 
-- [ ] **M2 — State snapshots & diffs.** `eidetic.snapshot(state)` (+ optional auto-snapshot
-  after each LLM event); content-addressed dedup of snapshots; lazy RFC 6902-shape JSON
-  diff between steps; `eidetic show --step k` shows I/O, `eidetic diff <id> a b` shows the
-  state delta.
-  **Test:** record an agent that mutates a state dict across steps; `eidetic diff <id> 2 3`
-  prints the add/remove/replace ops; identical adjacent states share one blob on disk.
+- [x] **M2 — State snapshots & diffs.** `eidetic.snapshot(state)` + optional auto-snapshot
+  after each LLM event (`record(snapshot=...)`); content-addressed dedup of snapshots; lazy
+  RFC 6902-shape JSON diff (`eidetic.json_diff` / `diff_snapshots`); `eidetic diff <id> a b`
+  shows the state delta using the nearest preceding snapshots. Snapshot is a no-op on replay.
+  **Test:** `python examples\stateful_agent.py` → records a state-mutating agent, replays it
+  identically, and prints the per-step diff; `eidetic diff <id> 0 1` prints add/replace ops;
+  `pytest` → green (dedup, diff, auto-snapshot). _(verified at build time; awaiting human confirm)_
 
 ## Phase 2 — The novel hook
 

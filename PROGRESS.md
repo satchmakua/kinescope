@@ -5,24 +5,59 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Phase 2 next (M3 — branching). M0 + M1 are in.
+**Current phase:** Phase 2 next (M3 — branching). M0 + M1 + M2 are in.
 
 ### State of the tree
 
 | Component | File | Status |
 |---|---|---|
 | Trace model + canonical hashing | `src/eidetic/model.py` | ✅ M0 |
-| Session (global seq, suppression, divergence) | `src/eidetic/session.py` | ✅ M1 |
+| Session (seq, suppression, divergence, snapshots) | `src/eidetic/session.py` | ✅ M2 |
 | HTTP interception (sync + async, SSE) | `src/eidetic/intercept/http.py` | ✅ M1 |
 | Tool interception | `src/eidetic/intercept/tools.py` | ✅ M1 |
 | Clock/RNG/UUID interception | `src/eidetic/intercept/stdlib.py` | ✅ M1 |
-| record() / replay() / http_client() / async | `src/eidetic/engine.py` | ✅ M1 |
+| record() / replay() / http_client() / snapshot() | `src/eidetic/engine.py` | ✅ M2 |
+| State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
 | LocalStore (SQLite + blobs) | `src/eidetic/store/local.py` | ✅ M0 |
 | TraceStore port | `src/eidetic/store/base.py` | ✅ M0 · MongoStore → M5 |
-| CLI (`ls`, `show`) | `src/eidetic/cli.py` | ✅ M0 · replay/fork/ui → later |
-| State snapshots + diff | `src/eidetic/diff.py` | ⏳ M2 |
+| CLI (`ls`, `show`, `diff`) | `src/eidetic/cli.py` | ✅ M2 · replay/fork/ui → later |
 | Branch engine | `src/eidetic/branch.py` | ⏳ M3 |
 | Textual TUI | `src/eidetic/tui/` | ⏳ M4 |
+
+---
+
+## M2 — State snapshots & diffs · built 2026-06-28 (awaiting human confirm)
+
+Made runs *inspectable*: capture document-shaped agent state over time and show what
+changed between steps.
+
+**What shipped**
+- **`eidetic.snapshot(state, label=None)`** — stores a content-addressed (deduplicated)
+  snapshot tagged with the seq of the most recent boundary (`after_seq`). No-op outside a
+  session and on replay (recorded snapshots are authoritative).
+- **Auto-snapshot** via `record(snapshot=lambda: agent.state)` — fires after every LLM
+  event (`Session.record_event` hook), labelled `post-llm`.
+- **Structural JSON diff** (`diff.py`) — RFC 6902-shaped ops (add/remove/replace over JSON
+  Pointer paths, with `~0/~1` escaping); lists diffed positionally so an append shows as an
+  `add` at the tail. Computed **lazily** (only when inspected). `diff_snapshots()` resolves
+  the nearest snapshot at-or-before each requested step.
+- **`eidetic diff <id> a b`** CLI — colored add/remove/replace render.
+
+**Decisions / gotchas**
+- **Windows console safety:** Rich/`print` fall back to legacy cp1252 on some Windows
+  terminals, which can't encode `→`/`⚠`/`…`. Switched all CLI/example glyphs to ASCII
+  (`->`, `(!)`, `...`). Keep CLI output ASCII-only.
+- Snapshots are keyed `(run_id, after_seq)`; an explicit + auto snapshot at the same seq
+  would collide (last wins). Fine for now; revisit if multi-snapshot-per-step is needed.
+- Diff is intentionally a *structural* (not minimal-edit/LCS) diff — right for human
+  timeline reading and growing message lists; not a minimal patch.
+
+**Verified**
+- `pytest` → **24 passed** (added: json_diff add/remove/replace + pointer escaping, snapshot
+  dedup, cross-step diff, replay no-op, auto-snapshot-after-llm).
+- `ruff check .` clean · `mypy src` clean (13 files).
+- `python examples/stateful_agent.py` → records a state-growing agent, replays identically,
+  prints the step 0→1 diff (`add /notes/1`, `replace /step`). `eidetic diff <id> 0 1` matches.
 
 ---
 

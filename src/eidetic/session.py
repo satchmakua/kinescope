@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import contextlib
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextvars import ContextVar
 from typing import Any, Literal
 
-from .model import BoundaryKind, Event, Run
+from .model import BoundaryKind, Event, Run, Snapshot
 from .store.base import TraceStore
 
 Mode = Literal["record", "replay"]
@@ -46,6 +46,7 @@ class Session:
         self._seq = 0
         self._suppress = 0  # >0 while inside a recorded tool body (nested boundaries skip)
         self._lock = threading.Lock()
+        self.snapshot_fn: Callable[[], Any] | None = None  # auto-snapshot after each LLM event
 
     # --- identity / lifecycle -----------------------------------------------
 
@@ -98,6 +99,18 @@ class Session:
 
     def record_event(self, ev: Event) -> None:
         self.store.append_event(ev)
+        if self.snapshot_fn is not None and ev.kind == "llm" and not self.suppressed():
+            self.take_snapshot(self.snapshot_fn(), label="post-llm")
+
+    def take_snapshot(self, state: Any, label: str | None = None) -> None:
+        """Store a content-addressed (deduplicated) state snapshot, tagged with the seq
+        of the most recent boundary. No-op during replay (the recording is authoritative)."""
+        if self.mode == "replay":
+            return
+        state_ref = self.store.put_blob(state)
+        self.store.put_snapshot(
+            Snapshot(self.run_id, after_seq=self._seq - 1, state_ref=state_ref, label=label)
+        )
 
     # --- replay path: match a live boundary against the recording -------------
 

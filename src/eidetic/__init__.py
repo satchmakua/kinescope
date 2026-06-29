@@ -19,7 +19,8 @@ Quickstart::
 
 from __future__ import annotations
 
-from .engine import async_http_client, http_client, record, replay
+from .diff import diff_snapshots, json_diff
+from .engine import async_http_client, http_client, record, replay, snapshot
 from .intercept import instrument_tools, tool
 from .model import Event, Run, Snapshot
 from .session import DivergenceError, Session, active_session
@@ -34,6 +35,9 @@ __all__ = [
     "async_http_client",
     "tool",
     "instrument_tools",
+    "snapshot",
+    "json_diff",
+    "diff_snapshots",
     "LocalStore",
     "TraceStore",
     "Session",
