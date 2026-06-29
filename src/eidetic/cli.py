@@ -98,6 +98,27 @@ def diff(
         console.print(f"  {style}{sign} {op['path']}{val}[/]")
 
 
+@app.command("export-otel")
+def export_otel_cmd(
+    run_id: str,
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+) -> None:
+    """Export a run as OpenTelemetry GenAI spans to the console (needs the 'otel' extra)."""
+    try:
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+
+        from .export.otel import export_otel
+    except ModuleNotFoundError as exc:
+        console.print("[red]Export needs the 'otel' extra:  pip install eidetic[otel][/red]")
+        raise typer.Exit(1) from exc
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+    n = export_otel(run_id, LocalStore(store), tracer_provider=provider)
+    provider.force_flush()
+    console.print(f"exported {n} gen_ai span(s) + 1 run span")
+
+
 @app.command("ui")
 def ui(
     run_id: str,

@@ -94,4 +94,5 @@ def fork(
     finally:
         patcher.uninstall()
         store.update_run(child)
+        store.commit()  # flush buffered events durably
         ses.deactivate(token)

@@ -21,9 +21,10 @@ anthropic = ["anthropic>=0.112,<1"]
 openai = ["openai>=1.40"]
 cli = ["typer>=0.12", "rich>=13"]
 tui = ["textual>=8.2,<9"]
+otel = ["opentelemetry-sdk>=1.20"]
 mongo = ["pymongo>=4.8,<5"]
 dev = [
-  "eidetic[anthropic,openai,cli,tui]",
+  "eidetic[anthropic,openai,cli,tui,otel]",
   "pytest>=8",
   "ruff>=0.6",
   "mypy>=1.11",

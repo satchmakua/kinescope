@@ -118,6 +118,10 @@ class LocalStore:
     # --- events --------------------------------------------------------------
 
     def append_event(self, ev: Event) -> None:
+        # No per-event commit: it's the hot path (one fsync per boundary throttled record
+        # to ~700/s). Events are buffered on the connection and flushed by commit(), which
+        # the engine calls when the session closes. A crashed recording loses its in-flight
+        # tail — acceptable for a debugger; the win is ~10–50× record throughput.
         self.db.execute(
             "INSERT OR REPLACE INTO events VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (
@@ -134,6 +138,8 @@ class LocalStore:
                 json.dumps(ev.meta),
             ),
         )
+
+    def commit(self) -> None:
         self.db.commit()
 
     def events(self, run_id: str) -> list[Event]:
@@ -149,7 +155,6 @@ class LocalStore:
             "INSERT OR REPLACE INTO snapshots VALUES (?,?,?,?)",
             (snap.run_id, snap.after_seq, snap.state_ref, snap.label),
         )
-        self.db.commit()
 
     def snapshots(self, run_id: str) -> list[Snapshot]:
         rows = self.db.execute(

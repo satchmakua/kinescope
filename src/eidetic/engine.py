@@ -71,6 +71,7 @@ def record(
     finally:
         patcher.uninstall()
         store.update_run(run)
+        store.commit()  # flush buffered events durably
         ses.deactivate(token)
 
 
@@ -100,6 +101,7 @@ def replay(
     finally:
         patcher.uninstall()
         store.update_run(run)
+        store.commit()  # flush buffered events durably
         ses.deactivate(token)
 
 
