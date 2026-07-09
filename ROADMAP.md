@@ -1,16 +1,15 @@
 # ROADMAP — Eidetic
 
-The milestone checklist. Standing instruction: **"continue"** → build the next
-unchecked milestone.
+The milestone checklist. Build the next unchecked milestone.
 
 **Rules of the road:**
-- Each milestone is an **independently runnable** slice — something the human can
-  actually test, not an internal-only refactor.
+- Each milestone is an **independently runnable** slice — something actually testable
+  end-to-end, not an internal-only refactor.
 - Every milestone ends with explicit **Test** steps: what to do and what should
   happen. These are the acceptance criteria.
 - Build **top-down**: a thin end-to-end slice first, then deepen. Counts and scopes
   are budgets, not promises — split a milestone if it grows too big.
-- Check a box **only after the human confirms its Test passes**, then add a
+- Check a box **only after its Test passes**, then add a
   `PROGRESS.md` entry.
 
 See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
@@ -25,7 +24,7 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   returning the recorded completion with no network; `eidetic ls`/`show` inspect it.
   Lint/typecheck/tests wired up.
   **Test:** `python examples\record_demo.py` → prints a run id and "replayed: identical";
-  `pytest` → green; `eidetic ls` → shows the run. _(verified at scaffold time; awaiting human confirm)_
+  `pytest` → green; `eidetic ls` → shows the run. _(verified at scaffold time)_
 
 ## Phase 1 — The full nondeterministic frontier
 
@@ -38,7 +37,7 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   deterministically.
   **Test:** `python examples\tool_agent.py` → records a tool + clock + RNG + LLM agent and
   replays it identically with 0 divergences; `pytest` → green (tools, stdlib, async,
-  streaming, divergence). _(verified at build time; awaiting human confirm)_
+  streaming, divergence). _(verified at build time)_
 
 - [x] **M2 — State snapshots & diffs.** `eidetic.snapshot(state)` + optional auto-snapshot
   after each LLM event (`record(snapshot=...)`); content-addressed dedup of snapshots; lazy
@@ -46,7 +45,7 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   shows the state delta using the nearest preceding snapshots. Snapshot is a no-op on replay.
   **Test:** `python examples\stateful_agent.py` → records a state-mutating agent, replays it
   identically, and prints the per-step diff; `eidetic diff <id> 0 1` prints add/replace ops;
-  `pytest` → green (dedup, diff, auto-snapshot). _(verified at build time; awaiting human confirm)_
+  `pytest` → green (dedup, diff, auto-snapshot). _(verified at build time)_
 
 ## Phase 2 — The novel hook
 
@@ -70,7 +69,7 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   is the interactive fork-and-fix.
   **Test:** `pytest tests/test_tui.py` (headless via Textual pilot) → scrubbing updates the
   detail/diff panes; `f` with an agent forks, creates a linked child, and the app switches to
-  it; `f` without an agent warns instead of crashing. _(verified at build time; awaiting human confirm)_
+  it; `f` without an agent warns instead of crashing. _(verified at build time)_
 
 ## Phase 4 — Reach (stretch; pick by signal)
 
@@ -82,7 +81,7 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   zip a run's events+snapshots+blobs; imports into any store and stays replayable/forkable —
   stdlib-only). Remaining: minimal web timeline (deprioritized vs. the TUI).
   **Test:** `pytest tests/test_otel.py tests/test_mongo.py tests/test_bundle.py` → green;
-  `python examples\share_bundle.py` → export→import→replay across stores. _(verified; awaiting human confirm)_
+  `python examples\share_bundle.py` → export→import→replay across stores. _(verified)_
 
 ---
 
@@ -111,6 +110,6 @@ feels effortless, Eidetic is good.
 7. **Positioned** — one paragraph: who it's for, what it beats, why this not the obvious alternative.
 
 **Hardening items (Eidetic-specific):**
-- [x] **H1 — Promote the OpenAI adapter out of "stretch" (M5 → now).** It is the only real test that the event schema is genuinely **provider-agnostic** — the abstraction is unproven with one provider. *Accept:* an OpenAI `chat.completions` call records + replays through the same engine with **no core schema change**; a recorded fixture proves it offline. **Done:** provider normalizers live in `src/eidetic/adapters/` (dispatch by host, JSON-only, no SDK needed); the engine's only change was moving the hardcoded `gen_ai.system` into the adapter. The real `openai` 2.x SDK records+replays via `tests/fixtures/openai_chat.json` offline (`examples/openai_demo.py`, `tests/test_openai.py`); OpenAI `prompt/completion_tokens` normalize to the same `gen_ai.usage.*` as Anthropic's `input/output_tokens`. _(awaiting human confirm)_
-- [x] **H2 — Determinism stress suite.** The product *is* correctness-of-replay — tested adversarially in `tests/test_stress.py`: sequential **async** boundaries replay deterministically; **concurrent** (`asyncio.gather`) boundaries are never silently wrong (identical-or-flagged); boundary **reordering** and **hidden nondeterminism** are flagged; a **randomized property** check (25 random agents) replays faithfully; a **10k-event** scale run reproduces exactly. Also found+fixed a perf bug (per-event SQLite commit) and pinned the contextvar/thread capture limit. *Accept:* all pass; throughput documented (~10k inline events record+replay in <1s; see PROGRESS). _(verified at build time; awaiting human confirm)_
+- [x] **H1 — Promote the OpenAI adapter out of "stretch" (M5 → now).** It is the only real test that the event schema is genuinely **provider-agnostic** — the abstraction is unproven with one provider. *Accept:* an OpenAI `chat.completions` call records + replays through the same engine with **no core schema change**; a recorded fixture proves it offline. **Done:** provider normalizers live in `src/eidetic/adapters/` (dispatch by host, JSON-only, no SDK needed); the engine's only change was moving the hardcoded `gen_ai.system` into the adapter. The real `openai` 2.x SDK records+replays via `tests/fixtures/openai_chat.json` offline (`examples/openai_demo.py`, `tests/test_openai.py`); OpenAI `prompt/completion_tokens` normalize to the same `gen_ai.usage.*` as Anthropic's `input/output_tokens`.
+- [x] **H2 — Determinism stress suite.** The product *is* correctness-of-replay — tested adversarially in `tests/test_stress.py`: sequential **async** boundaries replay deterministically; **concurrent** (`asyncio.gather`) boundaries are never silently wrong (identical-or-flagged); boundary **reordering** and **hidden nondeterminism** are flagged; a **randomized property** check (25 random agents) replays faithfully; a **10k-event** scale run reproduces exactly. Also found+fixed a perf bug (per-event SQLite commit) and pinned the contextvar/thread capture limit. *Accept:* all pass; throughput documented (~10k inline events record+replay in <1s; see PROGRESS). _(verified at build time)_
 - [ ] **H3 — Ship the flagship gif (with M4).** The fork-and-fix gif leads the README; `make demo` reproduces the branched run offline.

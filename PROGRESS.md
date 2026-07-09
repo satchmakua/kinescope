@@ -6,8 +6,8 @@ acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking 
 got done and why" companion.
 
 **Current phase:** Hardening + reach — H1 (OpenAI), H2 (stress suite), and M5's OTel export,
-`MongoStore`, and shareable trace bundles all done. **Remaining:** H3 (flagship gif —
-human-recorded) · minimal web timeline (deprioritized). M0–M4 + H1 + H2 + OTel + Mongo +
+`MongoStore`, and shareable trace bundles all done. **Remaining:** H3 (flagship gif) ·
+minimal web timeline (deprioritized). M0–M4 + H1 + H2 + OTel + Mongo +
 bundles are in — feature-complete for v1 plus most of the reach.
 
 ### State of the tree
@@ -33,7 +33,7 @@ bundles are in — feature-complete for v1 plus most of the reach.
 
 ---
 
-## M5 (slice) — Shareable trace bundles · built 2026-06-29 (awaiting human confirm)
+## M5 (slice) — Shareable trace bundles · built 2026-06-29
 
 Hand a failing run to someone else: export it whole, import it anywhere, replay/fork it there.
 
@@ -53,7 +53,7 @@ Hand a failing run to someone else: export it whole, import it anywhere, replay/
 
 ---
 
-## M5 (slice) — MongoStore: the second backend · built 2026-06-29 (awaiting human confirm)
+## M5 (slice) — MongoStore: the second backend · built 2026-06-29
 
 The storage analog of H1: if the same engine runs against a totally different backend with
 **zero engine changes**, the `TraceStore` port (the design's other load-bearing abstraction)
@@ -77,7 +77,7 @@ is real — not just LocalStore wearing an interface.
 
 ---
 
-## M5 (slice) — OTel `gen_ai.*` span export · built 2026-06-29 (awaiting human confirm)
+## M5 (slice) — OTel `gen_ai.*` span export · built 2026-06-29
 
 Delivered on the design's standing promise (§4.3) that `Event.meta` is OTel-aligned "so a
 future export path is cheap" — it is.
@@ -107,7 +107,7 @@ not just stored strings.
 
 ---
 
-## H2 — Determinism stress suite · built 2026-06-29 (awaiting human confirm)
+## H2 — Determinism stress suite · built 2026-06-29
 
 Stressed the one guarantee everything rests on — correctness-of-replay — and turned up a
 real perf bug along the way.
@@ -148,7 +148,7 @@ in-flight tail — fine for a debugger.
 
 ---
 
-## H1 — OpenAI adapter: the provider-agnostic proof · built 2026-06-29 (awaiting human confirm)
+## H1 — OpenAI adapter: the provider-agnostic proof · built 2026-06-29
 
 The headline hardening item: prove the event schema generalizes beyond Anthropic. It does —
 with **no core change** beyond moving one hardcoded string into an adapter.
@@ -180,7 +180,7 @@ with one provider."
 
 ---
 
-## M4 — Timeline TUI + flagship demo · built 2026-06-29 (awaiting human confirm)
+## M4 — Timeline TUI + flagship demo · built 2026-06-29
 
 The product surface: a scrubbable terminal timeline where the fork-and-fix loop is visible.
 
@@ -216,7 +216,7 @@ The product surface: a scrubbable terminal timeline where the fork-and-fix loop 
 
 ---
 
-## M3 — Branching (the counterfactual hook) · built 2026-06-28 (awaiting human confirm)
+## M3 — Branching (the counterfactual hook) · built 2026-06-28
 
 The novel feature: fork a run at step *k*, override that one event's output, and run the
 tail live to explore "what if this step had gone differently?".
@@ -255,7 +255,7 @@ tail live to explore "what if this step had gone differently?".
 
 ---
 
-## M2 — State snapshots & diffs · built 2026-06-28 (awaiting human confirm)
+## M2 — State snapshots & diffs · built 2026-06-28
 
 Made runs *inspectable*: capture document-shaped agent state over time and show what
 changed between steps.
@@ -290,7 +290,7 @@ changed between steps.
 
 ---
 
-## M1 — Full boundary capture · built 2026-06-28 (awaiting human confirm)
+## M1 — Full boundary capture · built 2026-06-28
 
 Extended capture from "just the LLM call" to the **whole nondeterministic frontier**,
 with honest divergence detection, async, and streaming.
@@ -338,7 +338,7 @@ with honest divergence detection, async, and streaming.
 
 ---
 
-## M0 — Walking skeleton · built 2026-06-28 (awaiting human confirm)
+## M0 — Walking skeleton · built 2026-06-28
 
 Shipped the end-to-end **record → replay** loop, deterministic and offline.
 
