@@ -53,8 +53,8 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   copies events `0..k-1`, swaps event `k`'s output for the override, replays that prefix, then
   flips to **live** for `seq > k`, recording a new child run (`parent_run_id`, `forked_at_seq`,
   `overrides`). Works for tool / LLM / clock / RNG fork points. Branches are themselves
-  replayable; `eidetic ls` shows the lineage. (CLI `fork` subcommand deferred — it needs an
-  agent entry-point runner, same as CLI `replay`.)
+  replayable; `eidetic ls` shows the lineage. (CLI `record`/`replay`/`fork -- <cmd>` now shipped
+  too — see the hardening section — via the in-process agent runner in `src/eidetic/runner.py`.)
   **Test:** `python examples\fork_demo.py` → records a faulty-sensor agent ("cold"), forks at
   the sensor step, overrides the reading, and the live re-classify flips it to "warm"; the
   child is linked to its parent and re-replays identically. `pytest` → green (override + live
@@ -79,9 +79,11 @@ See [DESIGN.md](DESIGN.md) for the full rationale behind each milestone.
   it unchanged, proving the `TraceStore` port generalizes; tested hermetically with mongomock) ·
   **shareable trace bundles** ✓ (`eidetic.export_bundle`/`import_bundle`, `eidetic export`/`import`:
   zip a run's events+snapshots+blobs; imports into any store and stays replayable/forkable —
-  stdlib-only). Remaining: minimal web timeline (deprioritized vs. the TUI).
-  **Test:** `pytest tests/test_otel.py tests/test_mongo.py tests/test_bundle.py` → green;
-  `python examples\share_bundle.py` → export→import→replay across stores. _(verified)_
+  stdlib-only) · **CLI agent runner** ✓ (`eidetic record`/`replay`/`fork -- python agent.py`
+  via `src/eidetic/runner.py`) · **Gemini adapter** ✓ (a third provider, different wire shape;
+  `src/eidetic/adapters/gemini.py`). Remaining: minimal web timeline (deprioritized vs. the TUI).
+  **Test:** `pytest tests/test_otel.py tests/test_mongo.py tests/test_bundle.py
+  tests/test_runner.py tests/test_gemini.py` → green. _(verified)_
 
 ---
 
@@ -113,3 +115,29 @@ feels effortless, Eidetic is good.
 - [x] **H1 — Promote the OpenAI adapter out of "stretch" (M5 → now).** It is the only real test that the event schema is genuinely **provider-agnostic** — the abstraction is unproven with one provider. *Accept:* an OpenAI `chat.completions` call records + replays through the same engine with **no core schema change**; a recorded fixture proves it offline. **Done:** provider normalizers live in `src/eidetic/adapters/` (dispatch by host, JSON-only, no SDK needed); the engine's only change was moving the hardcoded `gen_ai.system` into the adapter. The real `openai` 2.x SDK records+replays via `tests/fixtures/openai_chat.json` offline (`examples/openai_demo.py`, `tests/test_openai.py`); OpenAI `prompt/completion_tokens` normalize to the same `gen_ai.usage.*` as Anthropic's `input/output_tokens`.
 - [x] **H2 — Determinism stress suite.** The product *is* correctness-of-replay — tested adversarially in `tests/test_stress.py`: sequential **async** boundaries replay deterministically; **concurrent** (`asyncio.gather`) boundaries are never silently wrong (identical-or-flagged); boundary **reordering** and **hidden nondeterminism** are flagged; a **randomized property** check (25 random agents) replays faithfully; a **10k-event** scale run reproduces exactly. Also found+fixed a perf bug (per-event SQLite commit) and pinned the contextvar/thread capture limit. *Accept:* all pass; throughput documented (~10k inline events record+replay in <1s; see PROGRESS). _(verified at build time)_
 - [x] **H3 — Ship the flagship gif (with M4).** The fork-and-fix gif leads the README; `make demo` reproduces the branched run offline. **Done:** `docs/timeline.gif` (recorded from `examples/fork_demo_tui.py` — fork the `sensor` step, downstream `classify` re-runs live and flips cold→warm) is embedded at the top of the README; the run reproduces offline via `python examples/fork_demo_tui.py` (and non-interactively via `examples/fork_demo.py`). _(gif recorded + embedded; a `make demo` target is the only leftover)_
+- [x] **H4 — Reality-contact: one real live-key run.** Record a genuine model call once, commit the trace, and reproduce it offline. **Done:** `examples/live_record.py` records a real Anthropic (Haiku) call and commits `examples/fixtures/real_anthropic_run.zip`; `tests/test_real_run.py` imports it and replays **offline, 0 divergences** (skips cleanly if the bundle is absent). Bundle verified free of any `sk-ant-` token (auth redacted). _(OpenAI/Gemini still fixture-verified; a free Gemini key would extend this.)_
+- [x] **H5 — CLI is a full tool + a third provider.** `eidetic record`/`replay`/`fork -- python agent.py` run an agent script in-process under a session (`src/eidetic/runner.py`); and `src/eidetic/adapters/gemini.py` adds Gemini — a materially different wire shape (model-in-URL) — proving the schema generalizes beyond OpenAI's cousinhood to Anthropic. _(both verified; `tests/test_runner.py`, `tests/test_gemini.py`)_
+
+---
+
+## Deferred / later (nice-to-have — the product is complete without these)
+
+Ordered roughly by value. None of these are blockers; the core product + reach are done and verified.
+
+- [ ] **Live Gemini run.** Recorder is built (`examples/live_gemini_record.py`); the capture is
+  pending — the free-tier key hit `429` (quota) both in CI and on the author's machine on
+  2026-07-10. Retry when quota resets → commits `examples/fixtures/real_gemini_run.zip`, and
+  `tests/test_real_run.py::test_real_gemini_run_replays_offline` activates (currently skipped).
+- [ ] **Ollama run (local, free, no key).** Ollama is already installed on the author's box;
+  it serves an OpenAI-compatible endpoint at `http://localhost:11434/v1/chat/completions`.
+  Point a client at it via `eidetic.http_client()`, record + replay. Add host-based dispatch so
+  a `localhost` OpenAI-shaped call normalizes via the OpenAI adapter. Cheapest way to get a
+  *second real live run* with zero cost.
+- [ ] **Groq run (free tier, no card).** OpenAI-compatible API — another free live-run option;
+  goes through the existing OpenAI adapter with a different `base_url`.
+- [ ] **Live OpenAI run.** Same as the Anthropic real-run artifact, for OpenAI (needs a key).
+- [ ] **Minimal web timeline.** The lone remaining M5 stretch — a browser view of the scrub/
+  diff/fork loop. Deliberately deprioritized vs. the Textual TUI, which covers the demo.
+- [ ] **`make demo` polish.** `Makefile` with `demo`/`test`/`lint` targets is committed; `make`
+  isn't installed in the author's shell, so the plain `python examples/fork_demo.py` path is
+  primary. (Consider a `just`/`uv run` alternative.)

@@ -12,10 +12,11 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 
 - **Local-first, pluggable:** traces live in `.eidetic/` (SQLite index + content-addressed blobs) by default — no external services; a `MongoStore` backend (`eidetic[mongo]`) drops in via the same `TraceStore` port.
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, `openai`, the CLI, the TUI, and Mongo are optional extras.
-- **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives both the **Anthropic** Messages API and the **OpenAI** Chat Completions API — only the `gen_ai.*` metadata normalization differs (`src/eidetic/adapters/`).
+- **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives **Anthropic** Messages, **OpenAI** Chat Completions, and **Google Gemini** `generateContent` — including Gemini's very different wire shape (model in the URL, not the body). Only the `gen_ai.*` metadata normalization differs (`src/eidetic/adapters/`).
+- **Proven on a real call:** a genuine Anthropic run is recorded and committed as a bundle (`examples/fixtures/real_anthropic_run.zip`) that replays **offline, bit-for-bit** in CI — regenerate with `python examples/live_record.py` (needs a key).
 - **Interoperable:** event metadata follows the **OpenTelemetry GenAI** conventions, so any recorded run exports as `gen_ai.*` spans (`eidetic export-otel`) into existing observability backends (Phoenix, Langfuse, …).
 
-**Status:** **feature-complete** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), a **timeline TUI** to scrub and fork-and-fix, a second provider (OpenAI), OpenTelemetry export, a MongoDB backend, and shareable trace bundles. 54 offline tests. See [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md).
+**Status:** **feature-complete** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), a **timeline TUI**, a full **CLI runner** (`record`/`replay`/`fork` your agent script), three providers (Anthropic, OpenAI, Gemini), a **real recorded Anthropic run** that replays offline, OpenTelemetry export, a MongoDB backend, and shareable trace bundles. 62 offline tests. See [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md).
 
 ---
 
@@ -23,31 +24,43 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 
 **Prerequisites:** Python ≥ 3.11 (check: `python --version`).
 
-```powershell
+```bash
 py -m venv .venv
-.venv\Scripts\activate
-pip install -e ".[dev]"        # core + anthropic + cli + tui + test tooling
+source .venv/Scripts/activate      # Windows Git Bash; use `.venv/bin/activate` on macOS/Linux
+pip install -e ".[dev]"            # core + anthropic + openai + cli + tui + otel + test tooling
+python examples/fork_demo.py       # the flagship fork-and-fix loop (cold -> warm)
 ```
 
-See the record→replay loop end-to-end (offline — no API key, no network):
+(A `Makefile` offers `make demo` / `make test` / `make lint` shortcuts if you have `make`.)
 
-```powershell
-python examples\record_demo.py     # records one Anthropic call, then replays it deterministically
-python examples\tool_agent.py      # a tool + clock + RNG + LLM agent, recorded and replayed
-python examples\stateful_agent.py  # snapshots state across steps, then diffs it
-python examples\fork_demo.py       # fork-and-fix: override one step, watch the outcome change
-python examples\fork_demo_tui.py   # the same, in the timeline TUI — scrub, then press 'f'
-python examples\openai_demo.py     # the same engine recording a second provider (OpenAI)
-python examples\otel_export.py     # export a recorded run as OpenTelemetry gen_ai spans
-python examples\share_bundle.py    # export a run to a zip, import it elsewhere, replay it
+Run the examples end-to-end (offline — no API key, no network):
+
+```bash
+python examples/record_demo.py     # records one Anthropic call, then replays it deterministically
+python examples/tool_agent.py      # a tool + clock + RNG + LLM agent, recorded and replayed
+python examples/stateful_agent.py  # snapshots state across steps, then diffs it
+python examples/fork_demo.py       # fork-and-fix: override one step, watch the outcome change
+python examples/fork_demo_tui.py   # the same, in the timeline TUI — scrub, then press 'f'
+python examples/openai_demo.py     # the same engine recording a second provider (OpenAI)
+python examples/otel_export.py     # export a recorded run as OpenTelemetry gen_ai spans
+python examples/share_bundle.py    # export a run to a zip, import it elsewhere, replay it
+```
+
+Inspect and drive recorded runs from the CLI:
+
+```bash
+eidetic record -- python your_agent.py            # record an agent script (uses eidetic.http_client())
+eidetic replay <run-id> -- python your_agent.py   # replay it deterministically
+eidetic fork <run-id> --at 3 --override '{"output": 72}' -- python your_agent.py  # counterfactual
 eidetic ls                         # list recorded runs (with fork lineage)
 eidetic show <run-id> [--step k]   # inspect a run's events and I/O
 eidetic diff <run-id> <a> <b>      # state diff between two steps
 eidetic ui <run-id>                # scrub the timeline TUI (view-only)
 eidetic export-otel <run-id>       # emit OpenTelemetry gen_ai.* spans to the console
-eidetic export <run-id> run.zip    # package a run into a shareable bundle
-eidetic import run.zip             # load a bundle into the local store
+eidetic export <run-id> run.zip    # package a run into a shareable bundle; `eidetic import run.zip`
 ```
+
+`record`/`replay`/`fork` run your agent *script* (which builds its client with `eidetic.http_client()`) in-process under a session — try it offline with `examples/agent_script.py`.
 
 ### The timeline (TUI)
 
@@ -149,7 +162,7 @@ Determinism is guaranteed **at recorded boundaries**, and leaks are *surfaced*, 
 
 ## Tech stack
 
-Python 3.11+ · `httpx` transport interception · `anthropic` 0.112 and `openai` 2.x adapters · SQLite + content-addressed blobs · Typer (CLI) · Textual (TUI). Hexagonal/ports-and-adapters around a deterministic core.
+Python 3.11+ · `httpx` transport interception · Anthropic / OpenAI / Gemini adapters · SQLite + content-addressed blobs (or MongoDB via the same port) · Typer (CLI) · Textual (TUI) · OpenTelemetry export. Hexagonal/ports-and-adapters around a deterministic core.
 
 ## License
 

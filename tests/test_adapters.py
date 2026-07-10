@@ -31,6 +31,20 @@ def test_openai_normalization():
     assert meta["gen_ai.response.finish_reasons"] == ["stop"]
 
 
+def test_gemini_normalization_reads_model_from_url():
+    meta = normalize_meta(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        {"contents": [{"role": "user", "parts": [{"text": "hi"}]}]},  # no model in the body
+        b'{"candidates":[{"finishReason":"STOP"}],'
+        b'"usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":2}}',
+    )
+    assert meta["gen_ai.system"] == "gcp.gemini"
+    assert meta["gen_ai.request.model"] == "gemini-2.5-flash"  # pulled from the URL, not the body
+    assert meta["gen_ai.usage.input_tokens"] == 7
+    assert meta["gen_ai.usage.output_tokens"] == 2
+    assert meta["gen_ai.response.finish_reasons"] == ["STOP"]
+
+
 def test_unknown_host_is_best_effort_not_an_error():
     meta = normalize_meta("https://llm.example.com/v1/generate", {"model": "foo-1"}, b"not json")
     assert meta["gen_ai.system"] == "llm.example.com"

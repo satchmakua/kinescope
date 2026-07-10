@@ -29,6 +29,10 @@ def normalize_meta(url: str, req_body: Any, resp_bytes: bytes) -> dict[str, Any]
         from .openai import normalize
 
         return normalize(req_body, resp_bytes)
+    if "generativelanguage" in host or "gemini" in host:
+        from .gemini import normalize as gemini_normalize
+
+        return gemini_normalize(url, req_body, resp_bytes)  # needs the URL: model lives there
     meta: dict[str, Any] = {"gen_ai.system": host or "unknown"}
     if isinstance(req_body, dict) and req_body.get("model"):
         meta["gen_ai.request.model"] = req_body["model"]

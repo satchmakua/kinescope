@@ -5,10 +5,13 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Essentially complete. M0–M4 + H1 + H2 + H3 + M5 (OTel export, MongoStore,
-trace bundles) all done and **human-verified** (54 tests green on the user's machine
-2026-07-10; the fork-and-fix gif is recorded at `docs/timeline.gif` and leads the README).
-**Remaining (optional):** a `make demo` target and a minimal web timeline (deprioritized).
+**Current phase:** Complete for practical purposes. M0–M4 + H1 + H2 + H3 + M5 done, plus a
+**real recorded Anthropic run** (reproduces offline), a **CLI agent runner** (`record`/`replay`/
+`fork -- <cmd>`), and a **third provider** (Gemini — different wire shape). 62 tests, ruff/mypy
+clean, human-verified. A `Makefile` (`make demo`/`test`/`lint`) is committed. **Remaining
+(all optional, tracked in ROADMAP → _Deferred / later_):** live Gemini capture (recorder built;
+free-tier `429` on 2026-07-10 — retry when quota resets), a free **Ollama** run (installed
+locally) and/or **Groq**, a live OpenAI run, and a web timeline.
 
 ### State of the tree
 
@@ -19,9 +22,11 @@ trace bundles) all done and **human-verified** (54 tests green on the user's mac
 | HTTP interception (sync + async, SSE) | `src/eidetic/intercept/http.py` | ✅ M1 |
 | Tool interception | `src/eidetic/intercept/tools.py` | ✅ M1 |
 | Clock/RNG/UUID interception | `src/eidetic/intercept/stdlib.py` | ✅ M1 |
-| Provider adapters (gen_ai.* normalize: anthropic + openai) | `src/eidetic/adapters/` | ✅ H1 |
+| Provider adapters (gen_ai.* normalize: anthropic + openai + gemini) | `src/eidetic/adapters/` | ✅ H1 + |
+| CLI agent runner (record/replay/fork -- <cmd>) | `src/eidetic/runner.py` | ✅ |
 | OTel gen_ai span export | `src/eidetic/export/otel.py` | ✅ M5 |
 | Shareable trace bundles (export/import) | `src/eidetic/export/bundle.py` | ✅ M5 |
+| Real recorded Anthropic run (offline-reproducible) | `examples/live_record.py` + fixture | ✅ |
 | record() / replay() / http_client() / snapshot() | `src/eidetic/engine.py` | ✅ M2 |
 | Branch engine (fork@k, override, replay→live) | `src/eidetic/branch.py` | ✅ M3 |
 | State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
@@ -30,6 +35,42 @@ trace bundles) all done and **human-verified** (54 tests green on the user's mac
 | MongoStore (document-DB backend) | `src/eidetic/store/mongo.py` | ✅ M5 |
 | CLI (`ls`, `show`, `diff`, `ui`) | `src/eidetic/cli.py` | ✅ M4 · `fork` runner → later |
 | Textual TUI (3-pane scrub/detail/diff + fork) | `src/eidetic/tui/` | ✅ M4 |
+
+---
+
+## Reviewer follow-ups — live run + CLI runner + Gemini · 2026-07-10 (confirmed)
+
+Closed the three remaining items from the external review (`../ai-docs/project_eval/Eidetic.md`).
+
+- **Live-key Anthropic run (reality-contact).** `examples/live_record.py` records a genuine
+  Claude Haiku call (via the User-env key, injected without logging it), proves it replays
+  offline, and commits `examples/fixtures/real_anthropic_run.zip`. `tests/test_real_run.py`
+  imports that bundle and replays it **offline, 0 divergences** — so a *real* run is now
+  reproducible in CI forever, with no key. Verified the committed bundle contains no
+  `sk-ant-` token (auth header redacted to `<redacted>`).
+- **CLI agent runner.** `src/eidetic/runner.py` + `eidetic record`/`replay`/`fork -- python
+  agent.py` run a user's script in-process under a session (runpy, `__main__`), so boundaries
+  are captured from the command line — not just the library. Contract: the script builds its
+  client with `eidetic.http_client()` and doesn't open its own `record()`. Demoed by
+  `examples/agent_script.py`; end-to-end record→replay(0 div)→fork all confirmed via the CLI.
+- **Third provider — Gemini (`adapters/gemini.py`).** Deliberately a *different* wire shape
+  than OpenAI/Anthropic: model in the **URL path**, `promptTokenCount`/`candidatesTokenCount`,
+  uppercase `finishReason`. Records/replays through the same engine (raw httpx + fixture,
+  **free/offline**) and normalizes to the shared `gen_ai.*` vocab (`gen_ai.system=gcp.gemini`).
+
+**Verified:** `pytest` → **62 passed, 1 skipped** (added `test_real_run.py`, `test_runner.py`,
+`test_gemini.py`, a Gemini adapter unit test; the Gemini real-run test skips until its bundle
+exists); `ruff` clean; `mypy` clean (26 files). Also fixed the stale `cli.py` docstring the
+review flagged.
+
+**Live Gemini recorder built, capture pending.** `examples/live_gemini_agent.py` +
+`examples/live_gemini_record.py` mirror the Anthropic pair (key in the `x-goog-api-key`
+*header*, so the trace stays key-free). Attempting the live capture from the CI sandbox hit
+Google throttling (429/503 across models; the key itself is valid — `models.list` returned
+200), so the real Gemini bundle must be generated from a non-shared network:
+`./.venv/Scripts/python.exe examples/live_gemini_record.py` (key already in the user's env).
+Until then Gemini is proven offline (adapter fixture test) and the real-run test skips. A
+`make demo` target and a live OpenAI run remain as optional polish.
 
 ---
 

@@ -1,18 +1,22 @@
-"""The `eidetic` CLI (DESIGN.md §6.7). M0 surface: `ls` and `show`.
-
-`replay`/`fork`/`ui` arrive in later milestones once there's an agent entry point and
-the TUI to drive them.
+"""The `eidetic` CLI (DESIGN.md §6.7): `record`/`replay`/`fork` (run an agent script via
+`-- python your_agent.py`), plus `ls`, `show`, `diff`, `ui`, `export`/`import`, and
+`export-otel`.
 """
 
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
+from .branch import fork as _fork
 from .diff import diff_snapshots
+from .engine import record as _record
+from .engine import replay as _replay
+from .runner import run_script, split_command
 from .store.local import LocalStore
 
 app = typer.Typer(
@@ -21,6 +25,75 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+
+
+_PASSTHROUGH = {"allow_extra_args": True, "ignore_unknown_options": True}
+
+
+def _parse_capture(capture: str) -> Any:
+    if not capture:
+        return ()
+    if capture == "all":
+        return "all"
+    return [c.strip() for c in capture.split(",") if c.strip()]
+
+
+@app.command(context_settings=_PASSTHROUGH)
+def record(
+    ctx: typer.Context,
+    label: str = typer.Option("run", help="Run label."),
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    capture: str = typer.Option("", help="Stdlib capture: any of clock,rng,uuid or 'all'."),
+) -> None:
+    """Record an agent script: `eidetic record -- python your_agent.py [args]`.
+
+    The script must build its client with `eidetic.http_client()` and must NOT call
+    `eidetic.record()` itself (this command provides the session).
+    """
+    script, argv = split_command(ctx.args)
+    with _record(label, LocalStore(store), capture=_parse_capture(capture)) as ses:
+        run_script(script, argv)
+    console.print(f"recorded run [bold]{ses.run_id}[/bold] ({len(ses.events)} events)")
+
+
+@app.command(context_settings=_PASSTHROUGH)
+def replay(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Run id to replay."),
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    policy: str = typer.Option("warn", help="Divergence policy: strict | warn | off."),
+) -> None:
+    """Replay an agent script deterministically: `eidetic replay <id> -- python your_agent.py`."""
+    script, argv = split_command(ctx.args)
+    with _replay(run_id, LocalStore(store), policy=policy) as ses:  # type: ignore[arg-type]
+        run_script(script, argv)
+    if ses.divergences:
+        console.print(f"[yellow](!) {len(ses.divergences)} divergence(s):[/yellow]")
+        for d in ses.divergences:
+            console.print(f"   seq {d['seq']}: {d['reason']}")
+    else:
+        console.print("[green]replayed with 0 divergences[/green]")
+
+
+@app.command(context_settings=_PASSTHROUGH)
+def fork(
+    ctx: typer.Context,
+    run_id: str = typer.Argument(..., help="Parent run id."),
+    at: int = typer.Option(..., "--at", help="Step (seq) to fork at."),
+    override: str = typer.Option(..., "--override", help='Override JSON, e.g. \'{"output": 72}\'.'),
+    store: str = typer.Option(".eidetic", help="Trace store directory."),
+) -> None:
+    """Fork a run at a step, override that step's output, and run the tail live:
+    `eidetic fork <id> --at 3 --override '{"output": 72}' -- python your_agent.py`."""
+    try:
+        override_obj = json.loads(override)
+    except json.JSONDecodeError as exc:
+        console.print(f"[red]--override must be valid JSON: {exc}[/red]")
+        raise typer.Exit(1) from exc
+    script, argv = split_command(ctx.args)
+    with _fork(run_id, at, override_obj, LocalStore(store)) as ses:
+        run_script(script, argv)
+    console.print(f"forked run [bold]{ses.run_id}[/bold] (from {run_id} @ step {at})")
 
 
 @app.command("ls")
