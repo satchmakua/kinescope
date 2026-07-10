@@ -1,0 +1,15 @@
+{
+  "candidates": [
+    {
+      "content": { "role": "model", "parts": [{ "text": "Earth." }] },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 7,
+    "candidatesTokenCount": 2,
+    "totalTokenCount": 9
+  },
+  "modelVersion": "gemini-2.5-flash"
+}
