@@ -5,10 +5,10 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Hardening + reach — H1 (OpenAI), H2 (stress suite), and M5's OTel export,
-`MongoStore`, and shareable trace bundles all done. **Remaining:** H3 (flagship gif) ·
-minimal web timeline (deprioritized). M0–M4 + H1 + H2 + OTel + Mongo +
-bundles are in — feature-complete for v1 plus most of the reach.
+**Current phase:** Essentially complete. M0–M4 + H1 + H2 + H3 + M5 (OTel export, MongoStore,
+trace bundles) all done and **human-verified** (54 tests green on the user's machine
+2026-07-10; the fork-and-fix gif is recorded at `docs/timeline.gif` and leads the README).
+**Remaining (optional):** a `make demo` target and a minimal web timeline (deprioritized).
 
 ### State of the tree
 
@@ -30,6 +30,19 @@ bundles are in — feature-complete for v1 plus most of the reach.
 | MongoStore (document-DB backend) | `src/eidetic/store/mongo.py` | ✅ M5 |
 | CLI (`ls`, `show`, `diff`, `ui`) | `src/eidetic/cli.py` | ✅ M4 · `fork` runner → later |
 | Textual TUI (3-pane scrub/detail/diff + fork) | `src/eidetic/tui/` | ✅ M4 |
+
+---
+
+## H3 — Flagship fork-and-fix gif · 2026-07-10 (confirmed)
+
+The README now opens with the artifact. `docs/timeline.gif` (1114×665, ~208 KB) was recorded
+from `examples/fork_demo_tui.py`: fork the `sensor` step, override the reading, and the
+downstream `classify` re-runs live — verdict flips **cold → warm**, reproduced from the trace.
+Embedded at the top of the README with the reproduce command. The static `docs/timeline.svg`
+is kept as a fallback frame; only leftover is a `make demo` target.
+
+Also this session: the full suite was **human-verified** on the user's machine — `pytest` 54
+passed, `ruff` clean, `mypy` clean (24 files); `fork_demo.py` and `share_bundle.py` both ran.
 
 ---
 

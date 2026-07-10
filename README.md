@@ -6,12 +6,16 @@ Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool c
 
 **The demo:** an agent fails a task; you scrub to the step where it picked the wrong tool, fork and override just that decision, and watch the branched run complete — fully reproducible from the recording.
 
+![The Eidetic timeline TUI: forking a recorded run at the sensor step and watching the downstream classification flip from "cold" to "warm" — reproduced live from the trace.](docs/timeline.gif)
+
+*Fork-and-fix in the timeline TUI: override one recorded step, and the tail re-runs live. Reproduce it with `python examples/fork_demo_tui.py`.*
+
 - **Local-first, pluggable:** traces live in `.eidetic/` (SQLite index + content-addressed blobs) by default — no external services; a `MongoStore` backend (`eidetic[mongo]`) drops in via the same `TraceStore` port.
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, `openai`, the CLI, the TUI, and Mongo are optional extras.
 - **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives both the **Anthropic** Messages API and the **OpenAI** Chat Completions API — only the `gen_ai.*` metadata normalization differs (`src/eidetic/adapters/`).
 - **Interoperable:** event metadata follows the **OpenTelemetry GenAI** conventions, so any recorded run exports as `gen_ai.*` spans (`eidetic export-otel`) into existing observability backends (Phoenix, Langfuse, …).
 
-**Status:** **M0–M4 shipped (core product complete)** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), and a **timeline TUI** to scrub and fork-and-fix. See [ROADMAP.md](ROADMAP.md) for the plan and [PROGRESS.md](PROGRESS.md) for what's done.
+**Status:** **feature-complete** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), a **timeline TUI** to scrub and fork-and-fix, a second provider (OpenAI), OpenTelemetry export, a MongoDB backend, and shareable trace bundles. 54 offline tests. See [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md).
 
 ---
 
@@ -49,9 +53,8 @@ eidetic import run.zip             # load a bundle into the local store
 
 `eidetic ui <run-id>` opens a three-pane timeline — steps · detail · state diff — that you
 scrub with ↑/↓. Launched with an agent (`eidetic.ui(run_id, agent=run_agent)`), `f` forks the
-highlighted step, overrides its output, and runs the tail live — the fork-and-fix loop:
-
-[**View a timeline screenshot →**](docs/timeline.svg)
+highlighted step, overrides its output, and runs the tail live — the fork-and-fix loop shown
+in the gif above ([static frame](docs/timeline.svg)):
 
 ```
 ┌ Eidetic ── weather#fork@0  …  ⑂ from <parent>@0 ───────────────────────────────────┐
