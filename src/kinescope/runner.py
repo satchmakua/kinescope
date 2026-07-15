@@ -1,8 +1,8 @@
 """In-process agent runner for the CLI `record` / `replay` / `fork` commands.
 
-`eidetic record -- python your_agent.py [args]` runs the script's `__main__` inside an active
-Eidetic session, so its boundaries are captured. The contract: the script builds its LLM
-client with `eidetic.http_client()` and does NOT open its own `eidetic.record()` (the runner
+`kinescope record -- python your_agent.py [args]` runs the script's `__main__` inside an active
+Kinescope session, so its boundaries are captured. The contract: the script builds its LLM
+client with `kinescope.http_client()` and does NOT open its own `kinescope.record()` (the runner
 provides the session). Running in-process — not a subprocess — is what lets the session's
 contextvar and transport reach the agent's calls.
 """
@@ -23,7 +23,7 @@ def split_command(cmd: list[str]) -> tuple[str, list[str]]:
     """
     if not cmd:
         raise ValueError(
-            "no command given — usage: eidetic <cmd> [opts] -- python your_agent.py [args]"
+            "no command given — usage: kinescope <cmd> [opts] -- python your_agent.py [args]"
         )
     tokens = list(cmd)
     if tokens[0].lower() in _INTERPRETERS:

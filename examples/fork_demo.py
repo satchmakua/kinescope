@@ -11,18 +11,18 @@ Run:  python examples/fork_demo.py
 
 from __future__ import annotations
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 FAULTY_READING = 30  # the bug in the recorded run
 
 
-@eidetic.tool
+@kinescope.tool
 def sensor(city: str) -> int:
     return FAULTY_READING
 
 
-@eidetic.tool
+@kinescope.tool
 def classify(temp: int) -> str:
     return "cold" if temp < 50 else "warm"
 
@@ -33,14 +33,14 @@ def agent() -> dict:
 
 
 def main() -> None:
-    store = LocalStore(".eidetic")
+    store = LocalStore(".kinescope")
 
-    with eidetic.record("weather", store=store) as rec:
+    with kinescope.record("weather", store=store) as rec:
         original = agent()
     print(f"recorded run {rec.run_id}: {original}")  # {'temp': 30, 'verdict': 'cold'}
 
     # Fork at step 0 (the sensor read), override its output to the correct value.
-    with eidetic.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
+    with kinescope.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
         branched = agent()
     print(f"branched run {br.run_id}: {branched}")  # {'temp': 72, 'verdict': 'warm'}
 
@@ -51,7 +51,7 @@ def main() -> None:
     print(f"  parent       : {br.run.parent_run_id} @ fork {br.run.forked_at_seq}")
 
     # A branch is just another run — replay it deterministically.
-    with eidetic.replay(br.run_id, store=store) as rep:
+    with kinescope.replay(br.run_id, store=store) as rep:
         replayed = agent()
     assert replayed == branched and not rep.divergences
     print(f"  re-replayed  : {replayed} (branches are replayable; divergences={rep.divergences})")

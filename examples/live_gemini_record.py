@@ -18,8 +18,8 @@ from pathlib import Path
 
 import httpx
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 sys.path.insert(0, str(Path(__file__).parent))
 import live_gemini_agent  # noqa: E402
@@ -38,7 +38,7 @@ def main() -> None:
 
     store = LocalStore(tempfile.mkdtemp())
     try:
-        with eidetic.record("real-gemini", store=store) as rec:
+        with kinescope.record("real-gemini", store=store) as rec:
             reply = live_gemini_agent.run()  # <-- real call to generativelanguage.googleapis.com
     except httpx.HTTPStatusError as exc:
         code = exc.response.status_code
@@ -52,13 +52,13 @@ def main() -> None:
         raise SystemExit(1) from exc
     print(f"recorded REAL Gemini run {rec.run_id}: model said {reply!r}")
 
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         reply2 = live_gemini_agent.run(inner=httpx.MockTransport(_forbidden))
     assert reply == reply2 and not rep.divergences, (reply, reply2, rep.divergences)
     print(f"offline replay reproduced it byte-for-byte (divergences={rep.divergences})")
 
     FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-    eidetic.export_bundle(rec.run_id, FIXTURE, store=store)
+    kinescope.export_bundle(rec.run_id, FIXTURE, store=store)
     size = FIXTURE.stat().st_size
     print(f"committed artifact: examples/fixtures/{FIXTURE.name} ({size:,} bytes)")
 

@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 
-from .intercept.http import EideticAsyncTransport, EideticTransport
+from .intercept.http import KinescopeAsyncTransport, KinescopeTransport
 from .intercept.stdlib import StdlibPatcher, normalize_capture
 from .model import Run, new_run_id
 from .session import Policy, Session, active_session
@@ -21,7 +21,7 @@ from .store.local import LocalStore
 
 
 def _versions() -> dict[str, str]:
-    vers = {"eidetic": "0.0.1", "python": platform.python_version()}
+    vers = {"kinescope": "0.0.1", "python": platform.python_version()}
     with contextlib.suppress(Exception):
         import anthropic  # type: ignore
 
@@ -41,9 +41,9 @@ def record(
     """Record the nondeterministic boundaries of the agent code run inside this block.
 
     `capture` opts into stdlib interception: any of "clock", "rng", "uuid" (or "all").
-    Tool boundaries (`@eidetic.tool`) and HTTP/LLM boundaries are always captured.
+    Tool boundaries (`@kinescope.tool`) and HTTP/LLM boundaries are always captured.
     `snapshot` is an optional zero-arg callable; if given, agent state is auto-snapshotted
-    after every LLM event (in addition to any explicit `eidetic.snapshot()` calls).
+    after every LLM event (in addition to any explicit `kinescope.snapshot()` calls).
     """
     store = store or LocalStore()
     capture_kinds = normalize_capture(capture)
@@ -108,12 +108,12 @@ def replay(
 def http_client(*, inner: httpx.BaseTransport | None = None, **kwargs: Any) -> httpx.Client:
     """A sync httpx.Client whose transport records/replays through the active session.
 
-    Pass to the SDK, e.g. `anthropic.Anthropic(http_client=eidetic.http_client())`.
+    Pass to the SDK, e.g. `anthropic.Anthropic(http_client=kinescope.http_client())`.
     `inner` overrides the real network transport (used by tests to inject a stub).
     """
     ses = _require_session()
     inner = inner if inner is not None else httpx.HTTPTransport()
-    return httpx.Client(transport=EideticTransport(inner, ses), **kwargs)
+    return httpx.Client(transport=KinescopeTransport(inner, ses), **kwargs)
 
 
 def async_http_client(
@@ -122,7 +122,7 @@ def async_http_client(
     """An async httpx.AsyncClient for `anthropic.AsyncAnthropic(http_client=...)`."""
     ses = _require_session()
     inner = inner if inner is not None else httpx.AsyncHTTPTransport()
-    return httpx.AsyncClient(transport=EideticAsyncTransport(inner, ses), **kwargs)
+    return httpx.AsyncClient(transport=KinescopeAsyncTransport(inner, ses), **kwargs)
 
 
 def snapshot(state: Any, label: str | None = None) -> None:
@@ -138,5 +138,5 @@ def snapshot(state: Any, label: str | None = None) -> None:
 def _require_session() -> Session:
     ses = active_session()
     if ses is None:
-        raise RuntimeError("eidetic.http_client() must be called inside record()/replay()")
+        raise RuntimeError("kinescope.http_client() must be called inside record()/replay()")
     return ses

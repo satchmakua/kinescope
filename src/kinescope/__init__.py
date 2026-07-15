@@ -1,18 +1,18 @@
-"""Eidetic — deterministic record-replay and counterfactual branching for AI agents.
+"""Kinescope — deterministic record-replay and counterfactual branching for AI agents.
 
 Quickstart::
 
-    import anthropic, eidetic
+    import anthropic, kinescope
 
     def run_agent():
-        client = anthropic.Anthropic(http_client=eidetic.http_client())
+        client = anthropic.Anthropic(http_client=kinescope.http_client())
         return client.messages.create(model="claude-opus-4-8", max_tokens=64,
                                        messages=[{"role": "user", "content": "hi"}])
 
-    with eidetic.record("demo") as rec:
+    with kinescope.record("demo") as rec:
         run_agent()
 
-    with eidetic.replay(rec.run_id) as rep:
+    with kinescope.replay(rec.run_id) as rep:
         run_agent()          # returns the recorded completion; no network call
     assert not rep.divergences
 """

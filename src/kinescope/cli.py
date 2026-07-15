@@ -1,4 +1,4 @@
-"""The `eidetic` CLI (DESIGN.md §6.7): `record`/`replay`/`fork` (run an agent script via
+"""The `kinescope` CLI (DESIGN.md §6.7): `record`/`replay`/`fork` (run an agent script via
 `-- python your_agent.py`), plus `ls`, `show`, `diff`, `ui`, `export`/`import`, and
 `export-otel`.
 """
@@ -20,7 +20,7 @@ from .runner import run_script, split_command
 from .store.local import LocalStore
 
 app = typer.Typer(
-    help="Eidetic — deterministic record-replay for AI agents.",
+    help="Kinescope — deterministic record-replay for AI agents.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -42,13 +42,13 @@ def _parse_capture(capture: str) -> Any:
 def record(
     ctx: typer.Context,
     label: str = typer.Option("run", help="Run label."),
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
     capture: str = typer.Option("", help="Stdlib capture: any of clock,rng,uuid or 'all'."),
 ) -> None:
-    """Record an agent script: `eidetic record -- python your_agent.py [args]`.
+    """Record an agent script: `kinescope record -- python your_agent.py [args]`.
 
-    The script must build its client with `eidetic.http_client()` and must NOT call
-    `eidetic.record()` itself (this command provides the session).
+    The script must build its client with `kinescope.http_client()` and must NOT call
+    `kinescope.record()` itself (this command provides the session).
     """
     script, argv = split_command(ctx.args)
     with _record(label, LocalStore(store), capture=_parse_capture(capture)) as ses:
@@ -60,10 +60,10 @@ def record(
 def replay(
     ctx: typer.Context,
     run_id: str = typer.Argument(..., help="Run id to replay."),
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
     policy: str = typer.Option("warn", help="Divergence policy: strict | warn | off."),
 ) -> None:
-    """Replay an agent script deterministically: `eidetic replay <id> -- python your_agent.py`."""
+    """Replay an agent script deterministically: `kinescope replay <id> -- python your_agent.py`."""
     script, argv = split_command(ctx.args)
     with _replay(run_id, LocalStore(store), policy=policy) as ses:  # type: ignore[arg-type]
         run_script(script, argv)
@@ -81,10 +81,10 @@ def fork(
     run_id: str = typer.Argument(..., help="Parent run id."),
     at: int = typer.Option(..., "--at", help="Step (seq) to fork at."),
     override: str = typer.Option(..., "--override", help='Override JSON, e.g. \'{"output": 72}\'.'),
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
 ) -> None:
     """Fork a run at a step, override that step's output, and run the tail live:
-    `eidetic fork <id> --at 3 --override '{"output": 72}' -- python your_agent.py`."""
+    `kinescope fork <id> --at 3 --override '{"output": 72}' -- python your_agent.py`."""
     try:
         override_obj = json.loads(override)
     except json.JSONDecodeError as exc:
@@ -97,7 +97,7 @@ def fork(
 
 
 @app.command("ls")
-def ls(store: str = typer.Option(".eidetic", help="Trace store directory.")) -> None:
+def ls(store: str = typer.Option(".kinescope", help="Trace store directory.")) -> None:
     """List recorded runs."""
     s = LocalStore(store)
     runs = s.list_runs()
@@ -126,7 +126,7 @@ def ls(store: str = typer.Option(".eidetic", help="Trace store directory.")) -> 
 def show(
     run_id: str,
     step: int | None = typer.Option(None, "--step", help="Show only this step (seq)."),
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
 ) -> None:
     """Show a run's events (and a preview of each call's I/O)."""
     s = LocalStore(store)
@@ -151,7 +151,7 @@ def diff(
     run_id: str,
     a: int = typer.Argument(..., help="From step (seq)."),
     b: int = typer.Argument(..., help="To step (seq)."),
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
 ) -> None:
     """Show the state diff between two steps (uses the nearest preceding snapshots)."""
     s = LocalStore(store)
@@ -175,7 +175,7 @@ def diff(
 def export_cmd(
     run_id: str,
     path: str = typer.Argument(..., help="Output bundle path (.zip)."),
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
 ) -> None:
     """Export a run to a portable, shareable bundle (events + snapshots + blobs)."""
     from .export.bundle import export_bundle
@@ -187,7 +187,7 @@ def export_cmd(
 @app.command("import")
 def import_cmd(
     path: str = typer.Argument(..., help="Bundle path to import."),
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
 ) -> None:
     """Import a trace bundle into the local store (replayable/forkable afterward)."""
     from .export.bundle import import_bundle
@@ -199,7 +199,7 @@ def import_cmd(
 @app.command("export-otel")
 def export_otel_cmd(
     run_id: str,
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
 ) -> None:
     """Export a run as OpenTelemetry GenAI spans to the console (needs the 'otel' extra)."""
     try:
@@ -208,7 +208,7 @@ def export_otel_cmd(
 
         from .export.otel import export_otel
     except ModuleNotFoundError as exc:
-        console.print("[red]Export needs the 'otel' extra:  pip install eidetic[otel][/red]")
+        console.print("[red]Export needs the 'otel' extra:  pip install kinescope[otel][/red]")
         raise typer.Exit(1) from exc
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
@@ -220,13 +220,13 @@ def export_otel_cmd(
 @app.command("ui")
 def ui(
     run_id: str,
-    store: str = typer.Option(".eidetic", help="Trace store directory."),
+    store: str = typer.Option(".kinescope", help="Trace store directory."),
 ) -> None:
-    """Open the timeline TUI to scrub a run (view-only; fork via eidetic.ui(..., agent=...))."""
+    """Open the timeline TUI to scrub a run (view-only; fork via kinescope.ui(..., agent=...))."""
     try:
         from .tui.app import run_tui
     except ModuleNotFoundError as exc:
-        console.print("[red]The TUI needs the 'tui' extra:  pip install eidetic[tui][/red]")
+        console.print("[red]The TUI needs the 'tui' extra:  pip install kinescope[tui][/red]")
         raise typer.Exit(1) from exc
     run_tui(run_id, LocalStore(store))
 

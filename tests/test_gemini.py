@@ -10,8 +10,8 @@ from pathlib import Path
 
 import httpx
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "gemini_generate.json").read_text())
 URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
@@ -22,27 +22,27 @@ def _forbidden(request: httpx.Request) -> httpx.Response:
 
 
 def _call(inner: httpx.MockTransport) -> str:
-    client = eidetic.http_client(inner=inner)
+    client = kinescope.http_client(inner=inner)
     body = {"contents": [{"role": "user", "parts": [{"text": "what planet?"}]}]}
     resp = client.post(URL, json=body)
     return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def test_gemini_records_and_replays_through_same_engine(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     canned = httpx.MockTransport(lambda req: httpx.Response(200, json=FIXTURE))
-    with eidetic.record("gemini", store=store) as rec:
+    with kinescope.record("gemini", store=store) as rec:
         out1 = _call(canned)
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         out2 = _call(httpx.MockTransport(_forbidden))
     assert out1 == out2 == "Earth."
     assert rep.divergences == []
 
 
 def test_gemini_response_is_normalized_to_gen_ai_meta(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     canned = httpx.MockTransport(lambda req: httpx.Response(200, json=FIXTURE))
-    with eidetic.record("gemini", store=store) as rec:
+    with kinescope.record("gemini", store=store) as rec:
         _call(canned)
     meta = store.events(rec.run_id)[0].meta
     assert meta["gen_ai.system"] == "gcp.gemini"

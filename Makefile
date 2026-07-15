@@ -1,4 +1,4 @@
-# Eidetic — common tasks. Activate the venv first (source .venv/Scripts/activate),
+# Kinescope — common tasks. Activate the venv first (source .venv/Scripts/activate),
 # or override PYTHON, e.g.  make demo PYTHON=./.venv/Scripts/python.exe
 PYTHON ?= python
 

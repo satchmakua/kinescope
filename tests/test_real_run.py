@@ -12,8 +12,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
 BUNDLE = EXAMPLES / "fixtures" / "real_anthropic_run.zip"
@@ -32,10 +32,10 @@ def _forbidden(request: httpx.Request) -> httpx.Response:
 def test_real_anthropic_run_replays_offline(tmp_path):
     import live_agent
 
-    store = LocalStore(tmp_path / ".eidetic")
-    run_id = eidetic.import_bundle(BUNDLE, store=store)
+    store = LocalStore(tmp_path / ".kinescope")
+    run_id = kinescope.import_bundle(BUNDLE, store=store)
 
-    with eidetic.replay(run_id, store=store) as rep:
+    with kinescope.replay(run_id, store=store) as rep:
         reply = live_agent.run(inner=httpx.MockTransport(_forbidden))
 
     assert rep.divergences == []
@@ -53,10 +53,10 @@ def test_real_anthropic_run_replays_offline(tmp_path):
 def test_real_gemini_run_replays_offline(tmp_path):
     import live_gemini_agent
 
-    store = LocalStore(tmp_path / ".eidetic")
-    run_id = eidetic.import_bundle(GEMINI_BUNDLE, store=store)
+    store = LocalStore(tmp_path / ".kinescope")
+    run_id = kinescope.import_bundle(GEMINI_BUNDLE, store=store)
 
-    with eidetic.replay(run_id, store=store) as rep:
+    with kinescope.replay(run_id, store=store) as rep:
         reply = live_gemini_agent.run(inner=httpx.MockTransport(_forbidden))
 
     assert rep.divergences == []

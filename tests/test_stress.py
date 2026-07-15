@@ -12,11 +12,11 @@ from time import perf_counter
 
 import httpx
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 
-@eidetic.tool
+@kinescope.tool
 def _bump(n: int) -> int:
     return n + 1
 
@@ -29,10 +29,10 @@ def _canned(request: httpx.Request) -> httpx.Response:
 
 
 def test_sequential_async_boundaries_replay_deterministically(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
     async def run(inner):
-        client = eidetic.async_http_client(inner=inner)
+        client = kinescope.async_http_client(inner=inner)
         try:
             return [
                 (await client.get(f"https://api.anthropic.com/m?i={i}")).json() for i in range(5)
@@ -41,14 +41,14 @@ def test_sequential_async_boundaries_replay_deterministically(tmp_path):
             await client.aclose()
 
     async def do_record():
-        with eidetic.record("seq", store=store) as rec:
+        with kinescope.record("seq", store=store) as rec:
             out = await run(httpx.MockTransport(_canned))
         return rec.run_id, out
 
     run_id, out1 = asyncio.run(do_record())
 
     async def do_replay():
-        with eidetic.replay(run_id, store=store) as rep:
+        with kinescope.replay(run_id, store=store) as rep:
             out = await run(httpx.MockTransport(_canned))
         return out, list(rep.divergences)
 
@@ -59,10 +59,10 @@ def test_sequential_async_boundaries_replay_deterministically(tmp_path):
 def test_concurrent_async_is_never_silently_wrong(tmp_path):
     """Concurrent boundaries (asyncio.gather) may reorder vs. the recording. The contract is
     that replay is then EITHER identical OR flagged — never silently wrong."""
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
     async def run(inner):
-        client = eidetic.async_http_client(inner=inner)
+        client = kinescope.async_http_client(inner=inner)
 
         async def one(i):
             return (await client.get(f"https://api.anthropic.com/c?i={i}")).json()
@@ -73,14 +73,14 @@ def test_concurrent_async_is_never_silently_wrong(tmp_path):
             await client.aclose()
 
     async def do_record():
-        with eidetic.record("conc", store=store) as rec:
+        with kinescope.record("conc", store=store) as rec:
             out = await run(httpx.MockTransport(_canned))
         return rec.run_id, out
 
     run_id, recorded = asyncio.run(do_record())
 
     async def do_replay():
-        with eidetic.replay(run_id, store=store) as rep:
+        with kinescope.replay(run_id, store=store) as rep:
             out = await run(httpx.MockTransport(_canned))
         return out, list(rep.divergences)
 
@@ -91,15 +91,15 @@ def test_concurrent_async_is_never_silently_wrong(tmp_path):
 def test_boundary_reordering_is_flagged(tmp_path):
     """If boundaries are reordered between record and replay (the concurrency hazard),
     the divergence detector catches it via input-hash mismatch."""
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
     def fire(order):
-        client = eidetic.http_client(inner=httpx.MockTransport(_canned))
+        client = kinescope.http_client(inner=httpx.MockTransport(_canned))
         return [client.get(f"https://api.anthropic.com/r?i={i}").json() for i in order]
 
-    with eidetic.record("order", store=store) as rec:
+    with kinescope.record("order", store=store) as rec:
         fire([0, 1, 2])
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         fire([2, 1, 0])  # reordered
 
     assert any(d["reason"] == "input-mismatch" for d in rep.divergences)
@@ -109,21 +109,21 @@ def test_boundary_reordering_is_flagged(tmp_path):
 
 
 def test_hidden_nondeterminism_is_flagged(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     source = {"v": 0}  # stands in for an un-captured nondeterministic input
 
-    @eidetic.tool
+    @kinescope.tool
     def use(x):
         return x * 2
 
     def agent():
         return use(source["v"])
 
-    with eidetic.record("hidden", store=store) as rec:
+    with kinescope.record("hidden", store=store) as rec:
         agent()  # use(0)
     source["v"] = 99  # the input changed out from under replay
 
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         agent()  # use(99) → input hash differs
 
     assert rep.divergences and rep.divergences[0]["reason"] == "input-mismatch"
@@ -154,9 +154,9 @@ def test_random_deterministic_agents_replay_faithfully(tmp_path):
     for seed in range(25):
         store = LocalStore(tmp_path / f"run{seed}")
         agent = _build_agent(seed)
-        with eidetic.record(f"prop{seed}", store=store, capture="all") as rec:
+        with kinescope.record(f"prop{seed}", store=store, capture="all") as rec:
             first = agent()
-        with eidetic.replay(rec.run_id, store=store) as rep:
+        with kinescope.replay(rec.run_id, store=store) as rep:
             second = agent()
         assert first == second, f"seed {seed} diverged in values"
         assert rep.divergences == [], f"seed {seed} reported divergences"
@@ -166,16 +166,16 @@ def test_random_deterministic_agents_replay_faithfully(tmp_path):
 
 
 def test_large_trace_scale_and_throughput(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     n = 10_000
 
     t0 = perf_counter()
-    with eidetic.record("scale", store=store, capture=["rng"]) as rec:
+    with kinescope.record("scale", store=store, capture=["rng"]) as rec:
         recorded = [random.random() for _ in range(n)]
     record_s = perf_counter() - t0
 
     t0 = perf_counter()
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         replayed = [random.random() for _ in range(n)]
     replay_s = perf_counter() - t0
 
@@ -197,13 +197,13 @@ def test_worker_thread_boundaries_are_not_captured(tmp_path):
     thread/async-context per run, or propagate the context explicitly."""
     import concurrent.futures as cf
 
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    @eidetic.tool
+    @kinescope.tool
     def work(n):
         return n * n
 
-    with eidetic.record("threads", store=store) as rec:
+    with kinescope.record("threads", store=store) as rec:
         with cf.ThreadPoolExecutor(max_workers=4) as ex:
             list(ex.map(work, range(4)))  # NOT captured (worker threads lack the session)
         work(99)  # captured (runs on the recording thread)

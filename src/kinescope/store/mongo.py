@@ -6,7 +6,7 @@ Snapshot map to collection documents directly; blobs are content-addressed, gzip
 deduplicated by `_id`. `meta` is stored as a JSON string to sidestep MongoDB's historical
 dotted-field-name restriction (our `gen_ai.*` / `http.status` keys contain dots).
 
-Requires the `mongo` extra (`pip install eidetic[mongo]`). Construct with a live
+Requires the `mongo` extra (`pip install kinescope[mongo]`). Construct with a live
 `pymongo` client/URI, or inject any pymongo-compatible client (e.g. `mongomock`) for tests.
 """
 
@@ -26,7 +26,7 @@ class MongoStore:
         client: Any = None,
         *,
         uri: str = "mongodb://localhost:27017",
-        database: str = "eidetic",
+        database: str = "kinescope",
     ) -> None:
         if client is None:
             from pymongo import MongoClient  # imported only for the live path

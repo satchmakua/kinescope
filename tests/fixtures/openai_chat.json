@@ -1,5 +1,5 @@
 {
-  "id": "chatcmpl-eidetic-fixture",
+  "id": "chatcmpl-kinescope-fixture",
   "object": "chat.completion",
   "created": 1736600000,
   "model": "gpt-4o-mini-2024-07-18",

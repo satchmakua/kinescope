@@ -41,5 +41,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Eidetic trace stores (recorded runs — local artifacts, not source)
+# Kinescope trace stores (recorded runs — local artifacts, not source).
+# .eidetic/ is kept ignored for legacy traces recorded before the rename.
+.kinescope/
 .eidetic/

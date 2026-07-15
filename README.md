@@ -1,22 +1,24 @@
-# Eidetic
+# Kinescope
+
+*(formerly Eidetic)*
 
 > `rr` for nondeterministic AI agents — capture every nondeterministic input so any run replays deterministically, *and* can be branched: "what if the model had chosen the other tool here?"
 
-Eidetic records the **nondeterministic frontier** of an agent (LLM calls, tool calls, clock, RNG/UUID, retrieval), replays any run **deterministically** from the trace, and lets you **fork** at any step — override one recorded event and resume *live* — to explore counterfactuals. A Textual timeline lets you scrub steps, inspect message/tool I/O and state diffs, and fork with one key.
+Kinescope records the **nondeterministic frontier** of an agent (LLM calls, tool calls, clock, RNG/UUID, retrieval), replays any run **deterministically** from the trace, and lets you **fork** at any step — override one recorded event and resume *live* — to explore counterfactuals. A Textual timeline lets you scrub steps, inspect message/tool I/O and state diffs, and fork with one key.
 
 **The demo:** an agent fails a task; you scrub to the step where it picked the wrong tool, fork and override just that decision, and watch the branched run complete — fully reproducible from the recording.
 
-![The Eidetic timeline TUI: forking a recorded run at the sensor step and watching the downstream classification flip from "cold" to "warm" — reproduced live from the trace.](docs/timeline.gif)
+![The Kinescope timeline TUI: forking a recorded run at the sensor step and watching the downstream classification flip from "cold" to "warm" — reproduced live from the trace.](docs/timeline.gif)
 
 *Fork-and-fix in the timeline TUI: override one recorded step, and the tail re-runs live. Reproduce it with `python examples/fork_demo_tui.py`.*
 
-- **Local-first, pluggable:** traces live in `.eidetic/` (SQLite index + content-addressed blobs) by default — no external services; a `MongoStore` backend (`eidetic[mongo]`) drops in via the same `TraceStore` port.
+- **Local-first, pluggable:** traces live in `.kinescope/` (SQLite index + content-addressed blobs) by default — no external services; a `MongoStore` backend (`kinescope[mongo]`) drops in via the same `TraceStore` port.
 - **Tiny core:** the engine depends on `httpx` only; `anthropic`, `openai`, the CLI, the TUI, and Mongo are optional extras.
-- **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives **Anthropic** Messages, **OpenAI** Chat Completions, and **Google Gemini** `generateContent` — including Gemini's very different wire shape (model in the URL, not the body). Only the `gen_ai.*` metadata normalization differs (`src/eidetic/adapters/`).
+- **Provider-agnostic:** interception is at the httpx transport, so the *same* record→replay→fork engine drives **Anthropic** Messages, **OpenAI** Chat Completions, and **Google Gemini** `generateContent` — including Gemini's very different wire shape (model in the URL, not the body). Only the `gen_ai.*` metadata normalization differs (`src/kinescope/adapters/`).
 - **Proven on a real call:** a genuine Anthropic run is recorded and committed as a bundle (`examples/fixtures/real_anthropic_run.zip`) that replays **offline, bit-for-bit** in CI — regenerate with `python examples/live_record.py` (needs a key).
-- **Interoperable:** event metadata follows the **OpenTelemetry GenAI** conventions, so any recorded run exports as `gen_ai.*` spans (`eidetic export-otel`) into existing observability backends (Phoenix, Langfuse, …).
+- **Interoperable:** event metadata follows the **OpenTelemetry GenAI** conventions, so any recorded run exports as `gen_ai.*` spans (`kinescope export-otel`) into existing observability backends (Phoenix, Langfuse, …).
 
-**Status:** **feature-complete** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@eidetic.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), a **timeline TUI**, a full **CLI runner** (`record`/`replay`/`fork` your agent script), three providers (Anthropic, OpenAI, Gemini), a **real recorded Anthropic run** that replays offline, OpenTelemetry export, a MongoDB backend, and shareable trace bundles. 62 offline tests. See [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md).
+**Status:** **feature-complete** — deterministic record→replay across the full nondeterministic frontier (LLM calls — sync, async, SSE streaming; `@kinescope.tool` calls; opt-in clock/RNG/UUID), an honest divergence detector, state snapshots with per-step diffs, **counterfactual branching** (`fork` at any step, override one event, run the tail live), a **timeline TUI**, a full **CLI runner** (`record`/`replay`/`fork` your agent script), three providers (Anthropic, OpenAI, Gemini), a **real recorded Anthropic run** that replays offline, OpenTelemetry export, a MongoDB backend, and shareable trace bundles. 62 offline tests. See [ROADMAP.md](ROADMAP.md) and [PROGRESS.md](PROGRESS.md).
 
 ---
 
@@ -49,28 +51,28 @@ python examples/share_bundle.py    # export a run to a zip, import it elsewhere,
 Inspect and drive recorded runs from the CLI:
 
 ```bash
-eidetic record -- python your_agent.py            # record an agent script (uses eidetic.http_client())
-eidetic replay <run-id> -- python your_agent.py   # replay it deterministically
-eidetic fork <run-id> --at 3 --override '{"output": 72}' -- python your_agent.py  # counterfactual
-eidetic ls                         # list recorded runs (with fork lineage)
-eidetic show <run-id> [--step k]   # inspect a run's events and I/O
-eidetic diff <run-id> <a> <b>      # state diff between two steps
-eidetic ui <run-id>                # scrub the timeline TUI (view-only)
-eidetic export-otel <run-id>       # emit OpenTelemetry gen_ai.* spans to the console
-eidetic export <run-id> run.zip    # package a run into a shareable bundle; `eidetic import run.zip`
+kinescope record -- python your_agent.py            # record an agent script (uses kinescope.http_client())
+kinescope replay <run-id> -- python your_agent.py   # replay it deterministically
+kinescope fork <run-id> --at 3 --override '{"output": 72}' -- python your_agent.py  # counterfactual
+kinescope ls                         # list recorded runs (with fork lineage)
+kinescope show <run-id> [--step k]   # inspect a run's events and I/O
+kinescope diff <run-id> <a> <b>      # state diff between two steps
+kinescope ui <run-id>                # scrub the timeline TUI (view-only)
+kinescope export-otel <run-id>       # emit OpenTelemetry gen_ai.* spans to the console
+kinescope export <run-id> run.zip    # package a run into a shareable bundle; `kinescope import run.zip`
 ```
 
-`record`/`replay`/`fork` run your agent *script* (which builds its client with `eidetic.http_client()`) in-process under a session — try it offline with `examples/agent_script.py`.
+`record`/`replay`/`fork` run your agent *script* (which builds its client with `kinescope.http_client()`) in-process under a session — try it offline with `examples/agent_script.py`.
 
 ### The timeline (TUI)
 
-`eidetic ui <run-id>` opens a three-pane timeline — steps · detail · state diff — that you
-scrub with ↑/↓. Launched with an agent (`eidetic.ui(run_id, agent=run_agent)`), `f` forks the
+`kinescope ui <run-id>` opens a three-pane timeline — steps · detail · state diff — that you
+scrub with ↑/↓. Launched with an agent (`kinescope.ui(run_id, agent=run_agent)`), `f` forks the
 highlighted step, overrides its output, and runs the tail live — the fork-and-fix loop shown
 in the gif above ([static frame](docs/timeline.svg)):
 
 ```
-┌ Eidetic ── weather#fork@0  …  ⑂ from <parent>@0 ───────────────────────────────────┐
+┌ Kinescope ── weather#fork@0  …  ⑂ from <parent>@0 ───────────────────────────────────┐
 │ seq kind  name        │ #1 tool classify              │ state diff (sensed → …)     │
 │  0  tool  sensor  fork│ ok · 0ms                      │ ~ /verdict   "warm"         │
 │ ▸1  tool  classify    │ input  [72]                   │                             │
@@ -78,21 +80,21 @@ in the gif above ([static frame](docs/timeline.svg)):
 └ ↑/↓ scrub · f fork · q quit ───────────────────────────────────────────────────────┘
 ```
 
-Both examples use the real Anthropic SDK wired through an Eidetic transport with a stub
+Both examples use the real Anthropic SDK wired through a Kinescope transport with a stub
 inner transport, so they record and replay with no network and no key — and replay
 provably never touches the network.
 
 ### Use it in your own agent
 
 ```python
-import anthropic, eidetic
+import anthropic, kinescope
 
-@eidetic.tool                              # tool calls are recorded boundaries
+@kinescope.tool                              # tool calls are recorded boundaries
 def get_weather(city: str) -> dict:
     ...
 
 def run_agent():
-    client = anthropic.Anthropic(http_client=eidetic.http_client())
+    client = anthropic.Anthropic(http_client=kinescope.http_client())
     msg = client.messages.create(
         model="claude-opus-4-8", max_tokens=256,
         messages=[{"role": "user", "content": "What's the weather in Paris?"}],
@@ -100,20 +102,20 @@ def run_agent():
     return msg
 
 # capture=[...] also records direct clock/RNG/UUID use (opt-in; off by default)
-with eidetic.record("paris", capture=["clock", "rng"]) as rec:
+with kinescope.record("paris", capture=["clock", "rng"]) as rec:
     run_agent()
 
-with eidetic.replay(rec.run_id) as rep:    # reproduce, offline & deterministic
+with kinescope.replay(rec.run_id) as rep:    # reproduce, offline & deterministic
     run_agent()
 assert not rep.divergences
 
 # counterfactual: override step k's output, then run the tail LIVE
-with eidetic.fork(rec.run_id, at=3, override={"output": {"temp_f": 71}}) as branch:
+with kinescope.fork(rec.run_id, at=3, override={"output": {"temp_f": 71}}) as branch:
     run_agent()                            # steps 0–2 replay; step 3 is overridden; 4+ go live
 print(branch.run_id)                       # a new child run, linked to its parent
 ```
 
-For async agents use `eidetic.async_http_client()` with `anthropic.AsyncAnthropic`.
+For async agents use `kinescope.async_http_client()` with `anthropic.AsyncAnthropic`.
 Streaming (`messages.stream(...)`) is captured and replayed automatically.
 
 ### Commands
@@ -121,8 +123,8 @@ Streaming (`messages.stream(...)`) is captured and replayed automatically.
 | Command | What it does |
 |---|---|
 | `python examples\record_demo.py` | Run the offline record→replay demo |
-| `eidetic ls` | List recorded runs |
-| `eidetic show <id> [--step k]` | Inspect a run's events / per-step I/O |
+| `kinescope ls` | List recorded runs |
+| `kinescope show <id> [--step k]` | Inspect a run's events / per-step I/O |
 | `pytest` | Run the tests |
 | `ruff check . && mypy src` | Lint + typecheck |
 
@@ -148,7 +150,7 @@ Every milestone in [ROADMAP.md](ROADMAP.md) ends with explicit **Test** steps.
 | [ROADMAP.md](ROADMAP.md) | The milestone checklist (the plan + what's done). |
 | [PROGRESS.md](PROGRESS.md) | Build log: what shipped each milestone and why. |
 | [`docs/`](docs/) | Deeper docs and architecture decisions (ADRs). |
-| [Eidetic-Foundational-Doc.md](Eidetic-Foundational-Doc.md) | The original thesis the design grew from. |
+| [Eidetic-Foundational-Doc.md](Eidetic-Foundational-Doc.md) | The original thesis the design grew from (written under the project's original name, Eidetic). |
 
 ## Determinism, honestly (limitations)
 

@@ -1,10 +1,10 @@
-from .http import EideticAsyncTransport, EideticTransport
+from .http import KinescopeAsyncTransport, KinescopeTransport
 from .stdlib import StdlibPatcher, normalize_capture
 from .tools import instrument_tools, tool
 
 __all__ = [
-    "EideticTransport",
-    "EideticAsyncTransport",
+    "KinescopeTransport",
+    "KinescopeAsyncTransport",
     "StdlibPatcher",
     "normalize_capture",
     "tool",

@@ -8,36 +8,36 @@ import asyncio
 
 from textual.widgets import DataTable
 
-import eidetic
-from eidetic.store.local import LocalStore
-from eidetic.tui.app import EideticApp
+import kinescope
+from kinescope.store.local import LocalStore
+from kinescope.tui.app import KinescopeApp
 
 
 def _record_stateful(store):
-    @eidetic.tool
+    @kinescope.tool
     def step(n):
         return n * 10
 
-    with eidetic.record("t", store=store) as rec:
+    with kinescope.record("t", store=store) as rec:
         state = {"count": 0, "log": []}
-        eidetic.snapshot(state, "start")
+        kinescope.snapshot(state, "start")
         step(1)
         state["count"] = 1
         state["log"].append("a")
-        eidetic.snapshot(state, "s1")
+        kinescope.snapshot(state, "s1")
         step(2)
         state["count"] = 2
         state["log"].append("b")
-        eidetic.snapshot(state, "s2")
+        kinescope.snapshot(state, "s2")
     return rec.run_id
 
 
 def test_tui_scrub_shows_events_and_diff(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     run_id = _record_stateful(store)
 
     async def scenario():
-        app = EideticApp(run_id, store)
+        app = KinescopeApp(run_id, store)
         async with app.run_test() as pilot:
             table = app.query_one("#steps", DataTable)
             assert table.row_count == 2  # two tool events
@@ -54,25 +54,25 @@ def test_tui_scrub_shows_events_and_diff(tmp_path):
 
 
 def test_tui_fork_creates_and_shows_child(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    @eidetic.tool
+    @kinescope.tool
     def sensor(city):
         return 30
 
-    @eidetic.tool
+    @kinescope.tool
     def classify(temp):
         return "cold" if temp < 50 else "warm"
 
     def agent():
         return {"temp": sensor("Paris"), "verdict": classify(sensor("Paris"))}
 
-    with eidetic.record("w", store=store) as rec:
+    with kinescope.record("w", store=store) as rec:
         agent()
     parent_id = rec.run_id
 
     async def scenario():
-        app = EideticApp(parent_id, store, agent=agent)
+        app = KinescopeApp(parent_id, store, agent=agent)
         async with app.run_test():
             before = len(store.list_runs())
             child_id = app.do_fork(0, {"output": 72})  # override the sensor read
@@ -88,11 +88,11 @@ def test_tui_fork_creates_and_shows_child(tmp_path):
 
 
 def test_fork_without_agent_warns_not_crash(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     run_id = _record_stateful(store)
 
     async def scenario():
-        app = EideticApp(run_id, store)  # no agent
+        app = KinescopeApp(run_id, store)  # no agent
         async with app.run_test() as pilot:
             await pilot.press("f")  # should notify, not raise
             await pilot.pause()

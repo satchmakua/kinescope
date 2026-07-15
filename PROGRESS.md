@@ -1,4 +1,4 @@
-# PROGRESS — Eidetic
+# PROGRESS — Kinescope
 
 A build log of what shipped and the notable decisions behind it. **Keep it honest** —
 this is the working memory between build sessions. The forward-looking plan and
@@ -17,24 +17,33 @@ locally) and/or **Groq**, a live OpenAI run, and a web timeline.
 
 | Component | File | Status |
 |---|---|---|
-| Trace model + canonical hashing | `src/eidetic/model.py` | ✅ M0 |
-| Session (seq, suppression, divergence, snapshots, branch) | `src/eidetic/session.py` | ✅ M3 |
-| HTTP interception (sync + async, SSE) | `src/eidetic/intercept/http.py` | ✅ M1 |
-| Tool interception | `src/eidetic/intercept/tools.py` | ✅ M1 |
-| Clock/RNG/UUID interception | `src/eidetic/intercept/stdlib.py` | ✅ M1 |
-| Provider adapters (gen_ai.* normalize: anthropic + openai + gemini) | `src/eidetic/adapters/` | ✅ H1 + |
-| CLI agent runner (record/replay/fork -- <cmd>) | `src/eidetic/runner.py` | ✅ |
-| OTel gen_ai span export | `src/eidetic/export/otel.py` | ✅ M5 |
-| Shareable trace bundles (export/import) | `src/eidetic/export/bundle.py` | ✅ M5 |
+| Trace model + canonical hashing | `src/kinescope/model.py` | ✅ M0 |
+| Session (seq, suppression, divergence, snapshots, branch) | `src/kinescope/session.py` | ✅ M3 |
+| HTTP interception (sync + async, SSE) | `src/kinescope/intercept/http.py` | ✅ M1 |
+| Tool interception | `src/kinescope/intercept/tools.py` | ✅ M1 |
+| Clock/RNG/UUID interception | `src/kinescope/intercept/stdlib.py` | ✅ M1 |
+| Provider adapters (gen_ai.* normalize: anthropic + openai + gemini) | `src/kinescope/adapters/` | ✅ H1 + |
+| CLI agent runner (record/replay/fork -- <cmd>) | `src/kinescope/runner.py` | ✅ |
+| OTel gen_ai span export | `src/kinescope/export/otel.py` | ✅ M5 |
+| Shareable trace bundles (export/import) | `src/kinescope/export/bundle.py` | ✅ M5 |
 | Real recorded Anthropic run (offline-reproducible) | `examples/live_record.py` + fixture | ✅ |
-| record() / replay() / http_client() / snapshot() | `src/eidetic/engine.py` | ✅ M2 |
-| Branch engine (fork@k, override, replay→live) | `src/eidetic/branch.py` | ✅ M3 |
-| State snapshots + structural diff | `src/eidetic/diff.py` | ✅ M2 |
-| LocalStore (SQLite + blobs) | `src/eidetic/store/local.py` | ✅ M0 |
-| TraceStore port | `src/eidetic/store/base.py` | ✅ M0 |
-| MongoStore (document-DB backend) | `src/eidetic/store/mongo.py` | ✅ M5 |
-| CLI (`ls`, `show`, `diff`, `ui`) | `src/eidetic/cli.py` | ✅ M4 · `fork` runner → later |
-| Textual TUI (3-pane scrub/detail/diff + fork) | `src/eidetic/tui/` | ✅ M4 |
+| record() / replay() / http_client() / snapshot() | `src/kinescope/engine.py` | ✅ M2 |
+| Branch engine (fork@k, override, replay→live) | `src/kinescope/branch.py` | ✅ M3 |
+| State snapshots + structural diff | `src/kinescope/diff.py` | ✅ M2 |
+| LocalStore (SQLite + blobs) | `src/kinescope/store/local.py` | ✅ M0 |
+| TraceStore port | `src/kinescope/store/base.py` | ✅ M0 |
+| MongoStore (document-DB backend) | `src/kinescope/store/mongo.py` | ✅ M5 |
+| CLI (`ls`, `show`, `diff`, `ui`) | `src/kinescope/cli.py` | ✅ M4 · `fork` runner → later |
+| Textual TUI (3-pane scrub/detail/diff + fork) | `src/kinescope/tui/` | ✅ M4 |
+
+---
+
+## 2026-07-15 — Renamed Eidetic to Kinescope
+
+Full product rename: PyPI/package name `eidetic` → `kinescope`, package dir
+`src/eidetic/` → `src/kinescope/`, console script `eidetic` → `kinescope`, local trace
+dir `.eidetic/` → `.kinescope/`, and all current-facing docs. Historical entries below
+keep the old name; previously recorded traces in `.eidetic/` dirs are not auto-found.
 
 ---
 
