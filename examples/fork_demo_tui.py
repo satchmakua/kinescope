@@ -10,40 +10,40 @@ Run:  python examples/fork_demo_tui.py
 
 from __future__ import annotations
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 FAULTY_READING = 30
 
 
-@eidetic.tool
+@kinescope.tool
 def sensor(city: str) -> int:
     return FAULTY_READING
 
 
-@eidetic.tool
+@kinescope.tool
 def classify(temp: int) -> str:
     return "cold" if temp < 50 else "warm"
 
 
 def agent() -> dict:
     state: dict = {"city": "Paris", "reading": None, "verdict": None}
-    eidetic.snapshot(state, "start")
+    kinescope.snapshot(state, "start")
     state["reading"] = sensor("Paris")
-    eidetic.snapshot(state, "sensed")
+    kinescope.snapshot(state, "sensed")
     state["verdict"] = classify(state["reading"])
-    eidetic.snapshot(state, "classified")
+    kinescope.snapshot(state, "classified")
     return state
 
 
 def main() -> None:
-    store = LocalStore(".eidetic")
-    with eidetic.record("weather", store=store) as rec:
+    store = LocalStore(".kinescope")
+    with kinescope.record("weather", store=store) as rec:
         agent()
     print(f"Recorded {rec.run_id} (verdict: cold).")
     print("Opening the timeline — scrub to step 0, press 'f', accept {\"output\": 72},")
     print("and watch the verdict flip to 'warm'. Press 'q' to quit.\n")
-    eidetic.ui(rec.run_id, store=store, agent=agent, default_override={"output": 72})
+    kinescope.ui(rec.run_id, store=store, agent=agent, default_override={"output": 72})
 
 
 if __name__ == "__main__":

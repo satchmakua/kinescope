@@ -11,8 +11,8 @@ from pathlib import Path
 import httpx
 import openai
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "openai_chat.json").read_text())
 
@@ -22,7 +22,7 @@ def _forbidden(request: httpx.Request) -> httpx.Response:
 
 
 def _run(inner: httpx.MockTransport) -> str:
-    client = openai.OpenAI(api_key="sk-test", http_client=eidetic.http_client(inner=inner))
+    client = openai.OpenAI(api_key="sk-test", http_client=kinescope.http_client(inner=inner))
     resp = client.chat.completions.create(
         model="gpt-4o-mini", messages=[{"role": "user", "content": "hi"}]
     )
@@ -30,13 +30,13 @@ def _run(inner: httpx.MockTransport) -> str:
 
 
 def test_openai_records_and_replays_through_same_engine(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     canned = httpx.MockTransport(lambda req: httpx.Response(200, json=FIXTURE))
 
-    with eidetic.record("openai", store=store) as rec:
+    with kinescope.record("openai", store=store) as rec:
         out1 = _run(canned)
 
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         out2 = _run(httpx.MockTransport(_forbidden))  # replay must not touch the network
 
     assert out1 == out2 == "Hello from a recorded OpenAI run."
@@ -44,10 +44,10 @@ def test_openai_records_and_replays_through_same_engine(tmp_path):
 
 
 def test_openai_response_is_normalized_to_gen_ai_meta(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     canned = httpx.MockTransport(lambda req: httpx.Response(200, json=FIXTURE))
 
-    with eidetic.record("openai", store=store) as rec:
+    with kinescope.record("openai", store=store) as rec:
         _run(canned)
 
     meta = store.events(rec.run_id)[0].meta

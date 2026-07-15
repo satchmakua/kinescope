@@ -57,7 +57,7 @@ def diff_snapshots(store: TraceStore, run_id: str, a: int, b: int) -> list[dict[
     snaps = store.snapshots(run_id)
     if not snaps:
         raise ValueError(
-            f"run {run_id} has no snapshots — call eidetic.snapshot(state) in the agent"
+            f"run {run_id} has no snapshots — call kinescope.snapshot(state) in the agent"
         )
     sa, sb = _at_or_before(snaps, a), _at_or_before(snaps, b)
     state_a = json.loads(store.get_blob(sa.state_ref))

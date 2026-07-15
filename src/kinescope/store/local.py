@@ -1,6 +1,6 @@
 """LocalStore: the default zero-dependency backend (DESIGN.md §6.6).
 
-Layout (everything under `.eidetic/`):
+Layout (everything under `.kinescope/`):
     index.db                          SQLite (WAL): runs, events, snapshots
     blobs/<aa>/<blake2b-hex>.gz       content-addressed, gzipped, deduplicated payloads
 """
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
 
 
 class LocalStore:
-    def __init__(self, root: str | Path = ".eidetic") -> None:
+    def __init__(self, root: str | Path = ".kinescope") -> None:
         self.root = Path(root)
         self.blobs = self.root / "blobs"
         self.blobs.mkdir(parents=True, exist_ok=True)
@@ -74,7 +74,7 @@ class LocalStore:
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             # mtime=0: deterministic header AND never calls time.time() (which a session
-            # capturing the clock would otherwise intercept — Eidetic must not trip its
+            # capturing the clock would otherwise intercept — Kinescope must not trip its
             # own patches, and identical content must yield identical bytes for dedup).
             path.write_bytes(gzip.compress(raw, mtime=0))
         return blob_id

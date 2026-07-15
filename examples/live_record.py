@@ -1,6 +1,6 @@
 """Record a REAL Anthropic call, prove it replays offline, and commit the trace as a bundle.
 
-This is the one place Eidetic touches a live model. Needs `ANTHROPIC_API_KEY` + network.
+This is the one place Kinescope touches a live model. Needs `ANTHROPIC_API_KEY` + network.
 Run once to (re)generate the artifact:
 
     ./.venv/Scripts/python.exe examples/live_record.py
@@ -17,8 +17,8 @@ from pathlib import Path
 
 import httpx
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 sys.path.insert(0, str(Path(__file__).parent))
 import live_agent  # noqa: E402
@@ -38,17 +38,17 @@ def main() -> None:
         raise SystemExit(2)
 
     store = LocalStore(tempfile.mkdtemp())  # transient; the committed bundle is the artifact
-    with eidetic.record("real-anthropic", store=store) as rec:
+    with kinescope.record("real-anthropic", store=store) as rec:
         reply = live_agent.run()  # <-- the real network call to api.anthropic.com
     print(f"recorded REAL run {rec.run_id}: Claude said {reply!r}")
 
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         reply2 = live_agent.run(inner=httpx.MockTransport(_forbidden))
     assert reply == reply2 and not rep.divergences, (reply, reply2, rep.divergences)
     print(f"offline replay reproduced it byte-for-byte (divergences={rep.divergences})")
 
     FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-    eidetic.export_bundle(rec.run_id, FIXTURE, store=store)
+    kinescope.export_bundle(rec.run_id, FIXTURE, store=store)
     size = FIXTURE.stat().st_size
     print(f"committed artifact: examples/fixtures/{FIXTURE.name} ({size:,} bytes)")
     print("-> reproduce it offline any time with:  pytest tests/test_real_run.py")

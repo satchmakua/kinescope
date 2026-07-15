@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "eidetic"
+name = "kinescope"
 version = "0.0.1"
 description = "rr for nondeterministic AI agents — deterministic record-replay and counterfactual branching."
 readme = "README.md"
@@ -13,7 +13,7 @@ authors = [{ name = "Satchel Hamilton" }]
 keywords = ["llm", "agents", "debugging", "record-replay", "determinism", "anthropic"]
 
 # The core engine depends on httpx ONLY. Everything else is an extra — this is the
-# adoption lever (see DESIGN.md §3): `pip install eidetic` gives you record/replay.
+# adoption lever (see DESIGN.md §3): `pip install kinescope` gives you record/replay.
 dependencies = ["httpx>=0.27,<1"]
 
 [project.optional-dependencies]
@@ -24,7 +24,7 @@ tui = ["textual>=8.2,<9"]
 otel = ["opentelemetry-sdk>=1.20"]
 mongo = ["pymongo>=4.8,<5"]
 dev = [
-  "eidetic[anthropic,openai,cli,tui,otel]",
+  "kinescope[anthropic,openai,cli,tui,otel]",
   "pytest>=8",
   "ruff>=0.6",
   "mypy>=1.11",
@@ -33,10 +33,10 @@ dev = [
 ]
 
 [project.scripts]
-eidetic = "eidetic.cli:app"
+kinescope = "kinescope.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/eidetic"]
+packages = ["src/kinescope"]
 
 [tool.ruff]
 line-length = 100

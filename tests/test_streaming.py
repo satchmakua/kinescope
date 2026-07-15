@@ -8,8 +8,8 @@ import json
 import anthropic
 import httpx
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 
 def _sse(*events: tuple[str, dict]) -> bytes:
@@ -86,7 +86,7 @@ def _forbidden() -> httpx.MockTransport:
 
 
 def _stream(inner: httpx.MockTransport) -> str:
-    client = anthropic.Anthropic(api_key="sk-demo", http_client=eidetic.http_client(inner=inner))
+    client = anthropic.Anthropic(api_key="sk-demo", http_client=kinescope.http_client(inner=inner))
     text = ""
     with client.messages.stream(
         model="claude-opus-4-8",
@@ -99,10 +99,10 @@ def _stream(inner: httpx.MockTransport) -> str:
 
 
 def test_sse_streaming_record_then_replay(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
-    with eidetic.record("s", store=store) as rec:
+    store = LocalStore(tmp_path / ".kinescope")
+    with kinescope.record("s", store=store) as rec:
         t1 = _stream(_sse_inner())
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         t2 = _stream(_forbidden())
 
     assert t1 == t2 == "Hello world"

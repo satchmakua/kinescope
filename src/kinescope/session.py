@@ -17,7 +17,7 @@ from .store.base import TraceStore
 Mode = Literal["record", "replay", "branch"]
 Policy = Literal["strict", "warn", "off"]
 
-_active: ContextVar[Session | None] = ContextVar("eidetic_active_session", default=None)
+_active: ContextVar[Session | None] = ContextVar("kinescope_active_session", default=None)
 
 
 class DivergenceError(RuntimeError):

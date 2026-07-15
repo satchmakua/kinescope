@@ -1,11 +1,11 @@
-"""The Eidetic timeline TUI (DESIGN.md §7) — a three-pane Textual app.
+"""The Kinescope timeline TUI (DESIGN.md §7) — a three-pane Textual app.
 
   STEPS (left)         the event log; fork points / divergences marked
   DETAIL (top-right)   the selected step's input / output / meta
   DIFF (bottom-right)  the state delta vs. the previous snapshot
 
 Scrub with ↑/↓, fork the highlighted step with `f`, quit with `q`. Launched view-only
-via `eidetic ui <run-id>`; pass an `agent` callable (e.g. `eidetic.ui(run_id, agent=...)`)
+via `kinescope ui <run-id>`; pass an `agent` callable (e.g. `kinescope.ui(run_id, agent=...)`)
 to make `f` actually fork-and-run the counterfactual live.
 """
 
@@ -65,7 +65,7 @@ class ForkScreen(ModalScreen):
         self.dismiss(None)
 
 
-class EideticApp(App):
+class KinescopeApp(App):
     """Scrub a recorded run; fork-and-fix the highlighted step."""
 
     CSS = """
@@ -124,7 +124,7 @@ class EideticApp(App):
         run = self.store.get_run(run_id)
         self.events = self.store.events(run_id)
         self.diverged_seqs = {d["seq"] for d in run.divergences}
-        self.title = "Eidetic"
+        self.title = "Kinescope"
         lineage = f"  ⑂ from {run.parent_run_id}@{run.forked_at_seq}" if run.parent_run_id else ""
         self.sub_title = f"{run.label}  {run_id}  ({run.status}){lineage}"
 
@@ -196,7 +196,7 @@ class EideticApp(App):
     def _diff_text(self, seq: int) -> Text:
         snaps = self.store.snapshots(self.run_id)
         if not snaps:
-            return Text("(no snapshots — call eidetic.snapshot(state) in the agent)", style="dim")
+            return Text("(no snapshots — call kinescope.snapshot(state) in the agent)", style="dim")
         before = [s for s in snaps if s.after_seq <= seq]
         cur = before[-1] if before else snaps[0]
         idx = snaps.index(cur)
@@ -225,7 +225,7 @@ class EideticApp(App):
     def action_fork(self) -> None:
         if self.agent is None:
             self.notify(
-                "fork needs an agent — launch via eidetic.ui(run_id, agent=...)",
+                "fork needs an agent — launch via kinescope.ui(run_id, agent=...)",
                 severity="warning",
             )
             return
@@ -258,4 +258,4 @@ def run_tui(
     from ..store.local import LocalStore
 
     store = store or LocalStore()
-    EideticApp(run_id, store, agent=agent, default_override=default_override).run()
+    KinescopeApp(run_id, store, agent=agent, default_override=default_override).run()

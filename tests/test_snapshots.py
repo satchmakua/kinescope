@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import httpx
 
-import eidetic
-from eidetic.diff import diff_snapshots, json_diff
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.diff import diff_snapshots, json_diff
+from kinescope.store.local import LocalStore
 
 
 def test_json_diff_add_remove_replace():
@@ -27,44 +27,44 @@ def test_json_diff_escapes_pointer_tokens():
 
 
 def test_snapshot_dedup_identical_states(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    @eidetic.tool
+    @kinescope.tool
     def noop():
         return 1
 
-    with eidetic.record("t", store=store) as rec:
+    with kinescope.record("t", store=store) as rec:
         state = {"x": 1}
-        eidetic.snapshot(state)
+        kinescope.snapshot(state)
         noop()
-        eidetic.snapshot(state)  # unchanged → same blob
+        kinescope.snapshot(state)  # unchanged → same blob
 
     snaps = store.snapshots(rec.run_id)
     assert len(snaps) == 2
     assert snaps[0].state_ref == snaps[1].state_ref  # deduplicated
-    blobs = list((tmp_path / ".eidetic" / "blobs").rglob("*.gz"))
+    blobs = list((tmp_path / ".kinescope" / "blobs").rglob("*.gz"))
     # one snapshot blob (shared) + the tool's input/output blobs
     assert sum(1 for _ in blobs) <= 3
 
 
 def test_snapshot_diff_across_steps(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    @eidetic.tool
+    @kinescope.tool
     def step():
         return "ok"
 
-    with eidetic.record("t", store=store) as rec:
+    with kinescope.record("t", store=store) as rec:
         state = {"count": 0, "log": []}
-        eidetic.snapshot(state, "start")  # after_seq -1
+        kinescope.snapshot(state, "start")  # after_seq -1
         step()
         state["count"] = 1
         state["log"].append("a")
-        eidetic.snapshot(state, "s1")  # after_seq 0
+        kinescope.snapshot(state, "s1")  # after_seq 0
         step()
         state["count"] = 2
         state["log"].append("b")
-        eidetic.snapshot(state, "s2")  # after_seq 1
+        kinescope.snapshot(state, "s2")  # after_seq 1
 
     ops = diff_snapshots(store, rec.run_id, 0, 1)  # s1 → s2
     by = {(o["op"], o["path"]): o.get("value") for o in ops}
@@ -73,34 +73,34 @@ def test_snapshot_diff_across_steps(tmp_path):
 
 
 def test_snapshot_is_noop_on_replay(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    @eidetic.tool
+    @kinescope.tool
     def step():
         return "ok"
 
-    with eidetic.record("t", store=store) as rec:
-        eidetic.snapshot({"v": 1})
+    with kinescope.record("t", store=store) as rec:
+        kinescope.snapshot({"v": 1})
         step()
     before = len(store.snapshots(rec.run_id))
 
-    with eidetic.replay(rec.run_id, store=store):
-        eidetic.snapshot({"v": 999})  # ignored during replay
+    with kinescope.replay(rec.run_id, store=store):
+        kinescope.snapshot({"v": 999})  # ignored during replay
         step()
 
     assert len(store.snapshots(rec.run_id)) == before == 1
 
 
 def test_auto_snapshot_after_llm_event(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     canned = httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True}))
     state = {"turns": 0}
 
     def call():
-        client = eidetic.http_client(inner=canned)
+        client = kinescope.http_client(inner=canned)
         client.get("https://api.anthropic.com/v1/messages")
 
-    with eidetic.record("t", store=store, snapshot=lambda: dict(state)) as rec:
+    with kinescope.record("t", store=store, snapshot=lambda: dict(state)) as rec:
         state["turns"] = 1
         call()  # llm event → auto-snapshot fires
 

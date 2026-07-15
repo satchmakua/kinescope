@@ -2,7 +2,7 @@
 
 Because `Event.meta` is already aligned to the OTel `gen_ai.*` semantic conventions, a
 recorded trace drops straight into any OTel-compatible backend (Phoenix, Langfuse, etc.):
-one parent `eidetic.run` span with a child span per LLM (`chat {model}`) and tool
+one parent `kinescope.run` span with a child span per LLM (`chat {model}`) and tool
 (`execute_tool {name}`) boundary, carrying the recorded timings and `gen_ai.*` attributes.
 """
 
@@ -27,13 +27,13 @@ def _span_attrs(ev: Event) -> dict[str, Any] | None:
     if ev.kind == "llm":
         attrs: dict[str, Any] = {k: v for k, v in ev.meta.items() if k.startswith("gen_ai.")}
         attrs.setdefault("gen_ai.operation.name", "chat")
-        attrs["eidetic.seq"] = ev.seq
+        attrs["kinescope.seq"] = ev.seq
         return attrs
     if ev.kind == "tool":
         return {
             "gen_ai.operation.name": "execute_tool",
             "gen_ai.tool.name": ev.name,
-            "eidetic.seq": ev.seq,
+            "kinescope.seq": ev.seq,
         }
     return None
 
@@ -44,7 +44,7 @@ def export_otel(
     tracer_provider: Any = None,
 ) -> int:
     """Emit GenAI spans for `run_id` to `tracer_provider` (or the global one). Returns the
-    number of LLM/tool spans emitted (excluding the parent `eidetic.run` span)."""
+    number of LLM/tool spans emitted (excluding the parent `kinescope.run` span)."""
     store = store or LocalStore()
     run = store.get_run(run_id)
     events = store.events(run_id)
@@ -52,15 +52,15 @@ def export_otel(
         from opentelemetry import trace
 
         tracer_provider = trace.get_tracer_provider()
-    tracer = tracer_provider.get_tracer("eidetic", "0.0.1")
+    tracer = tracer_provider.get_tracer("kinescope", "0.0.1")
 
     emitted = 0
     with tracer.start_as_current_span(
-        "eidetic.run",
+        "kinescope.run",
         attributes={
-            "eidetic.run_id": run.run_id,
-            "eidetic.label": run.label,
-            "eidetic.divergence_count": len(run.divergences),
+            "kinescope.run_id": run.run_id,
+            "kinescope.label": run.label,
+            "kinescope.divergence_count": len(run.divergences),
         },
     ):
         for ev in events:

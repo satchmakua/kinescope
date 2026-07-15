@@ -24,7 +24,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 def tool(fn: F | None = None, *, name: str | None = None) -> Any:
     """Decorator marking a callable as a recorded tool boundary.
 
-    Usage: ``@eidetic.tool`` or ``@eidetic.tool(name="search")``. Outside a session it
+    Usage: ``@kinescope.tool`` or ``@kinescope.tool(name="search")``. Outside a session it
     is a transparent no-op.
     """
 

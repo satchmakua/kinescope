@@ -6,7 +6,7 @@ replay (chunks arrive batched: we reproduce *what* streamed, not its latency). T
 own parser then rebuilds identical typed objects.
 
 Time is imported by-value (`from time import ...`) so that a session capturing the clock
-cannot intercept Eidetic's own internal timing.
+cannot intercept Kinescope's own internal timing.
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ def _persist(
     )
 
 
-class EideticTransport(httpx.BaseTransport):
+class KinescopeTransport(httpx.BaseTransport):
     """Sync transport shim."""
 
     def __init__(self, inner: httpx.BaseTransport, session: Session) -> None:
@@ -132,8 +132,8 @@ class EideticTransport(httpx.BaseTransport):
         self._inner.close()
 
 
-class EideticAsyncTransport(httpx.AsyncBaseTransport):
-    """Async transport shim — mirror of EideticTransport for AsyncAnthropic / AsyncClient."""
+class KinescopeAsyncTransport(httpx.AsyncBaseTransport):
+    """Async transport shim — mirror of KinescopeTransport for AsyncAnthropic / AsyncClient."""
 
     def __init__(self, inner: httpx.AsyncBaseTransport, session: Session) -> None:
         self._inner = inner

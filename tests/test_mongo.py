@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import mongomock
 
-import eidetic
-from eidetic.store.mongo import MongoStore
+import kinescope
+from kinescope.store.mongo import MongoStore
 
 
 def _store() -> MongoStore:
@@ -18,14 +18,14 @@ def test_record_replay_on_mongo_backend():
     store = _store()
     calls = {"n": 0}
 
-    @eidetic.tool
+    @kinescope.tool
     def add(a, b):
         calls["n"] += 1
         return a + b
 
-    with eidetic.record("m", store=store) as rec:
+    with kinescope.record("m", store=store) as rec:
         r1 = add(2, 3)
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         r2 = add(2, 3)
 
     assert r1 == r2 == 5
@@ -36,11 +36,11 @@ def test_record_replay_on_mongo_backend():
 def test_fork_on_mongo_backend():
     store = _store()
 
-    @eidetic.tool
+    @kinescope.tool
     def sensor(city):
         return 30
 
-    @eidetic.tool
+    @kinescope.tool
     def classify(temp):
         return "cold" if temp < 50 else "warm"
 
@@ -48,10 +48,10 @@ def test_fork_on_mongo_backend():
         temp = sensor("Paris")
         return {"temp": temp, "verdict": classify(temp)}
 
-    with eidetic.record("w", store=store) as rec:
+    with kinescope.record("w", store=store) as rec:
         assert agent() == {"temp": 30, "verdict": "cold"}
 
-    with eidetic.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
+    with kinescope.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
         assert agent() == {"temp": 72, "verdict": "warm"}  # override + live re-classify
 
     child = store.get_run(br.run_id)
@@ -80,8 +80,8 @@ def test_mongo_run_and_event_metadata_roundtrip():
             200, json={"model": "claude-opus-4-8", "stop_reason": "end_turn"}
         )
     )
-    with eidetic.record("meta", store=store) as rec:
-        client = eidetic.http_client(inner=canned)
+    with kinescope.record("meta", store=store) as rec:
+        client = kinescope.http_client(inner=canned)
         client.post("https://api.anthropic.com/v1/messages", json={"model": "claude-opus-4-8"})
 
     ev = store.events(rec.run_id)[0]

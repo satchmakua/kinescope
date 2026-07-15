@@ -6,16 +6,16 @@ from __future__ import annotations
 import httpx
 import pytest
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 
 def _make_agent(reading):
-    @eidetic.tool
+    @kinescope.tool
     def sensor(city):
         return reading["v"]
 
-    @eidetic.tool
+    @kinescope.tool
     def classify(temp):
         return "cold" if temp < 50 else "warm"
 
@@ -27,14 +27,14 @@ def _make_agent(reading):
 
 
 def test_fork_overrides_one_event_and_runs_tail_live(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     agent = _make_agent({"v": 30})
 
-    with eidetic.record("w", store=store) as rec:
+    with kinescope.record("w", store=store) as rec:
         base = agent()
     assert base == {"temp": 30, "verdict": "cold"}
 
-    with eidetic.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
+    with kinescope.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
         branched = agent()
 
     assert branched == {"temp": 72, "verdict": "warm"}  # override + live re-classify
@@ -50,16 +50,16 @@ def test_fork_overrides_one_event_and_runs_tail_live(tmp_path):
 
 
 def test_branch_is_itself_replayable(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     agent = _make_agent({"v": 30})
 
-    with eidetic.record("w", store=store) as rec:
+    with kinescope.record("w", store=store) as rec:
         agent()
-    with eidetic.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
+    with kinescope.fork(rec.run_id, at=0, override={"output": 72}, store=store) as br:
         branched = agent()
     child_id = br.run_id
 
-    with eidetic.replay(child_id, store=store) as rep:
+    with kinescope.replay(child_id, store=store) as rep:
         replayed = agent()
 
     assert replayed == branched == {"temp": 72, "verdict": "warm"}
@@ -67,9 +67,9 @@ def test_branch_is_itself_replayable(tmp_path):
 
 
 def test_fork_preserves_deterministic_prefix(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    @eidetic.tool
+    @kinescope.tool
     def step(n):
         return n * 10
 
@@ -79,11 +79,11 @@ def test_fork_preserves_deterministic_prefix(tmp_path):
         c = step(3)
         return [a, b, c]
 
-    with eidetic.record("p", store=store) as rec:
+    with kinescope.record("p", store=store) as rec:
         assert agent() == [10, 20, 30]
 
     # Override step(2)'s output (seq 1) from 20 → 999; seq 0 stays, seq 2 re-runs live.
-    with eidetic.fork(rec.run_id, at=1, override={"output": 999}, store=store) as br:
+    with kinescope.fork(rec.run_id, at=1, override={"output": 999}, store=store) as br:
         result = agent()
 
     assert result == [10, 999, 30]
@@ -93,29 +93,29 @@ def test_fork_preserves_deterministic_prefix(tmp_path):
 
 
 def test_fork_out_of_range_raises(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    @eidetic.tool
+    @kinescope.tool
     def only():
         return 1
 
-    with eidetic.record("x", store=store) as rec:
+    with kinescope.record("x", store=store) as rec:
         only()
 
     with pytest.raises(ValueError):
-        with eidetic.fork(rec.run_id, at=5, override={"output": 0}, store=store):
+        with kinescope.fork(rec.run_id, at=5, override={"output": 0}, store=store):
             only()
 
 
 def test_fork_overrides_an_llm_response(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     canned = httpx.MockTransport(lambda r: httpx.Response(200, json={"answer": "original"}))
 
     def call():
-        client = eidetic.http_client(inner=canned)
+        client = kinescope.http_client(inner=canned)
         return client.get("https://api.anthropic.com/v1/messages").json()
 
-    with eidetic.record("llm", store=store) as rec:
+    with kinescope.record("llm", store=store) as rec:
         assert call() == {"answer": "original"}
 
     forbidden = httpx.MockTransport(
@@ -123,10 +123,10 @@ def test_fork_overrides_an_llm_response(tmp_path):
     )
 
     def call_forked():
-        client = eidetic.http_client(inner=forbidden)
+        client = kinescope.http_client(inner=forbidden)
         return client.get("https://api.anthropic.com/v1/messages").json()
 
-    with eidetic.fork(rec.run_id, at=0, override={"output": {"answer": "forced"}}, store=store):
+    with kinescope.fork(rec.run_id, at=0, override={"output": {"answer": "forced"}}, store=store):
         result = call_forked()
 
     assert result == {"answer": "forced"}

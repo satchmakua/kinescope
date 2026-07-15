@@ -1,12 +1,12 @@
 """Offline end-to-end demo of the M0 record→replay loop.
 
-Uses the *real* Anthropic SDK, but wires its HTTP through an Eidetic transport whose
+Uses the *real* Anthropic SDK, but wires its HTTP through a Kinescope transport whose
 inner transport is a stub (httpx.MockTransport) — so this runs with no network and no
 API key. It records one `messages.create`, then replays it: replay returns the recorded
 completion byte-for-byte and never touches the (forbidden) inner transport.
 
 Run:  python examples/record_demo.py
-Then: eidetic ls   /   eidetic show <run-id>
+Then: kinescope ls   /   kinescope show <run-id>
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from __future__ import annotations
 import anthropic
 import httpx
 
-import eidetic
+import kinescope
 
 # A canned, valid Anthropic Messages API response.
 CANNED = {
@@ -41,7 +41,7 @@ def forbidden_transport() -> httpx.MockTransport:
 
 
 def run_agent(inner: httpx.MockTransport) -> str:
-    client = anthropic.Anthropic(api_key="sk-demo", http_client=eidetic.http_client(inner=inner))
+    client = anthropic.Anthropic(api_key="sk-demo", http_client=kinescope.http_client(inner=inner))
     msg = client.messages.create(
         model="claude-opus-4-8",
         max_tokens=64,
@@ -51,12 +51,12 @@ def run_agent(inner: httpx.MockTransport) -> str:
 
 
 def main() -> None:
-    with eidetic.record("hello-demo") as rec:
+    with kinescope.record("hello-demo") as rec:
         recorded_text = run_agent(stub_transport())
     run_id = rec.run_id
 
     # Replay: inner transport raises if called → proves replay is offline & deterministic.
-    with eidetic.replay(run_id) as rep:
+    with kinescope.replay(run_id) as rep:
         replayed_text = run_agent(forbidden_transport())
 
     assert recorded_text == replayed_text, "replay diverged from recording!"
@@ -65,7 +65,7 @@ def main() -> None:
     print(f"recorded run : {run_id}")
     print(f"completion   : {recorded_text!r}")
     print(f"replayed     : identical, {len(rep.events)} event(s), divergences={rep.divergences}")
-    print("\nInspect it:  eidetic ls   |   eidetic show", run_id)
+    print("\nInspect it:  kinescope ls   |   kinescope show", run_id)
 
 
 if __name__ == "__main__":

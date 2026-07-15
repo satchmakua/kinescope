@@ -1,4 +1,4 @@
-"""Export a recorded Eidetic run as OpenTelemetry GenAI spans (to the console).
+"""Export a recorded Kinescope run as OpenTelemetry GenAI spans (to the console).
 
 Because `Event.meta` already speaks the OTel `gen_ai.*` vocabulary, a recorded trace drops
 into any OTel backend. Here we print the spans with the console exporter — offline, no key.
@@ -12,7 +12,7 @@ import httpx
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 
-import eidetic
+import kinescope
 
 LLM_RESPONSE = {
     "model": "claude-opus-4-8",
@@ -21,13 +21,13 @@ LLM_RESPONSE = {
 }
 
 
-@eidetic.tool
+@kinescope.tool
 def search(query: str) -> dict:
     return {"hits": [f"result for {query}"]}
 
 
 def agent() -> None:
-    client = eidetic.http_client(
+    client = kinescope.http_client(
         inner=httpx.MockTransport(lambda req: httpx.Response(200, json=LLM_RESPONSE))
     )
     client.post(
@@ -38,13 +38,13 @@ def agent() -> None:
 
 
 def main() -> None:
-    with eidetic.record("otel-demo") as rec:
+    with kinescope.record("otel-demo") as rec:
         agent()
     print(f"recorded run {rec.run_id} — exporting as OTel gen_ai spans:\n")
 
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
-    n = eidetic.export_otel(rec.run_id, tracer_provider=provider)
+    n = kinescope.export_otel(rec.run_id, tracer_provider=provider)
     provider.force_flush()
     print(f"\nexported {n} gen_ai span(s) + 1 run span")
 

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import time
 
-from eidetic.model import Event, Run, new_run_id
-from eidetic.store.local import LocalStore
+from kinescope.model import Event, Run, new_run_id
+from kinescope.store.local import LocalStore
 
 
 def test_blob_is_content_addressed_and_deduplicated(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     a = store.put_blob({"hello": "world"})
     b = store.put_blob({"hello": "world"})  # identical → same id, one file
     c = store.put_blob(b"raw-bytes")
@@ -19,12 +19,12 @@ def test_blob_is_content_addressed_and_deduplicated(tmp_path):
     assert store.get_blob(a) == b'{"hello":"world"}'
     assert store.get_blob(c) == b"raw-bytes"
 
-    files = list((tmp_path / ".eidetic" / "blobs").rglob("*.gz"))
+    files = list((tmp_path / ".kinescope" / "blobs").rglob("*.gz"))
     assert len(files) == 2  # the dup collapsed
 
 
 def test_run_and_event_roundtrip(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
     run = Run(run_id=new_run_id(), label="x", created_at=time.time())
     store.create_run(run)
 

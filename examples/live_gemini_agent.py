@@ -11,7 +11,7 @@ import os
 
 import httpx
 
-import eidetic
+import kinescope
 
 MODEL = "gemini-2.0-flash"  # a standard free-tier model; swap for any from `models.list` if needed
 PROMPT = "In one word, what planet do humans live on?"
@@ -21,7 +21,7 @@ URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generate
 def run(inner: httpx.BaseTransport | None = None) -> str:
     """`inner=None` → real network (record); pass a stub transport for offline replay. During
     replay the key is irrelevant (the request never leaves the process)."""
-    client = eidetic.http_client(inner=inner)
+    client = kinescope.http_client(inner=inner)
     key = os.environ.get("GEMINI_API_KEY") or "offline-replay-no-key-needed"
     body = {
         "contents": [{"role": "user", "parts": [{"text": PROMPT}]}],

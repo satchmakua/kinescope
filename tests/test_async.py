@@ -6,8 +6,8 @@ import asyncio
 
 import httpx
 
-import eidetic
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.store.local import LocalStore
 
 
 def _canned(request: httpx.Request) -> httpx.Response:
@@ -19,7 +19,7 @@ def _forbidden(request: httpx.Request) -> httpx.Response:
 
 
 async def _call(inner: httpx.MockTransport) -> dict:
-    client = eidetic.async_http_client(inner=inner)
+    client = kinescope.async_http_client(inner=inner)
     try:
         resp = await client.get("https://api.anthropic.com/v1/messages")
         return resp.json()
@@ -28,17 +28,17 @@ async def _call(inner: httpx.MockTransport) -> dict:
 
 
 def test_async_record_replay_is_deterministic(tmp_path):
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
     async def do_record():
-        with eidetic.record("a", store=store) as rec:
+        with kinescope.record("a", store=store) as rec:
             out = await _call(httpx.MockTransport(_canned))
         return rec.run_id, out
 
     run_id, out1 = asyncio.run(do_record())
 
     async def do_replay():
-        with eidetic.replay(run_id, store=store) as rep:
+        with kinescope.replay(run_id, store=store) as rep:
             out = await _call(httpx.MockTransport(_forbidden))
         return out, list(rep.divergences)
 

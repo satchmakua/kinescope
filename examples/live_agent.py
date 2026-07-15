@@ -11,7 +11,7 @@ import os
 
 import httpx
 
-import eidetic
+import kinescope
 
 MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 16
@@ -19,13 +19,13 @@ PROMPT = "In one word, what planet do humans live on?"
 
 
 def run(inner: httpx.BaseTransport | None = None) -> str:
-    """Make the Claude call through Eidetic's transport. `inner=None` → real network (record);
+    """Make the Claude call through Kinescope's transport. `inner=None` → real network (record);
     pass a stub transport for offline replay. During replay the API key is irrelevant (the
     request never leaves the process), so a placeholder is fine when the env var is unset."""
     import anthropic
 
     api_key = os.environ.get("ANTHROPIC_API_KEY") or "offline-replay-no-key-needed"
-    client = anthropic.Anthropic(api_key=api_key, http_client=eidetic.http_client(inner=inner))
+    client = anthropic.Anthropic(api_key=api_key, http_client=kinescope.http_client(inner=inner))
     msg = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,

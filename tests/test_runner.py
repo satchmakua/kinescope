@@ -1,4 +1,4 @@
-"""The CLI entry-point runner: `eidetic record/replay/fork -- python agent.py` runs a user's
+"""The CLI entry-point runner: `kinescope record/replay/fork -- python agent.py` runs a user's
 script in-process under a session so its boundaries are captured — turning the library into a
 command-line tool."""
 
@@ -6,15 +6,15 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
-import eidetic
-from eidetic.cli import app
-from eidetic.runner import run_script, split_command
-from eidetic.store.local import LocalStore
+import kinescope
+from kinescope.cli import app
+from kinescope.runner import run_script, split_command
+from kinescope.store.local import LocalStore
 
 AGENT = '''
-import eidetic
+import kinescope
 
-@eidetic.tool
+@kinescope.tool
 def add(a, b):
     return a + b
 
@@ -39,20 +39,20 @@ def test_split_command_strips_interpreter():
 
 def test_run_script_records_then_replays(tmp_path):
     script = _write_agent(tmp_path)
-    store = LocalStore(tmp_path / ".eidetic")
+    store = LocalStore(tmp_path / ".kinescope")
 
-    with eidetic.record("r", store=store) as rec:
+    with kinescope.record("r", store=store) as rec:
         run_script(script, [])
     assert len(store.events(rec.run_id)) == 2  # two @tool calls captured from the script
 
-    with eidetic.replay(rec.run_id, store=store) as rep:
+    with kinescope.replay(rec.run_id, store=store) as rep:
         run_script(script, [])
     assert rep.divergences == []
 
 
 def test_cli_record_replay_roundtrip(tmp_path):
     script = _write_agent(tmp_path)
-    store = str(tmp_path / ".eidetic")
+    store = str(tmp_path / ".kinescope")
     cli = CliRunner()
 
     rec = cli.invoke(app, ["record", "--store", store, "--", "python", script])
@@ -67,7 +67,7 @@ def test_cli_record_replay_roundtrip(tmp_path):
 
 def test_cli_fork_from_command_line(tmp_path):
     script = _write_agent(tmp_path)
-    store = str(tmp_path / ".eidetic")
+    store = str(tmp_path / ".kinescope")
     cli = CliRunner()
 
     cli.invoke(app, ["record", "--store", store, "--", "python", script])

@@ -3,7 +3,7 @@ and the engine stays provider-agnostic (dispatch by host, JSON-only, never raise
 
 from __future__ import annotations
 
-from eidetic.adapters import normalize_meta
+from kinescope.adapters import normalize_meta
 
 
 def test_anthropic_normalization():
