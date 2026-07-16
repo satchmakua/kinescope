@@ -5,13 +5,14 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Complete for practical purposes. M0–M4 + H1 + H2 + H3 + M5 done, plus a
-**real recorded Anthropic run** (reproduces offline), a **CLI agent runner** (`record`/`replay`/
-`fork -- <cmd>`), and a **third provider** (Gemini — different wire shape). 62 tests, ruff/mypy
-clean, human-verified. A `Makefile` (`make demo`/`test`/`lint`) is committed. **Remaining
-(all optional, tracked in ROADMAP → _Deferred / later_):** live Gemini capture (recorder built;
-free-tier `429` on 2026-07-10 — retry when quota resets), a free **Ollama** run (installed
-locally) and/or **Groq**, a live OpenAI run, and a web timeline.
+**Current phase:** Complete for practical purposes. M0–M4 + H1 + H2 + H3 + M5 done, plus **two
+real recorded runs** that reproduce offline (hosted **Anthropic** + local **Ollama**), a **CLI
+agent runner** (`record`/`replay`/`fork -- <cmd>`), and **four providers** (Anthropic, OpenAI,
+Gemini, Ollama). 64 tests + 1 skipped, ruff/mypy clean, human-verified. A `Makefile`
+(`make demo`/`test`/`lint`) is committed. **Remaining (all optional, tracked in ROADMAP →
+_Deferred / later_):** live Gemini capture (recorder built; free-tier `429` — retry when quota
+resets), **Groq**, a live OpenAI run, and a web timeline. The real gap is now **distribution**
+(PyPI, users), not engineering.
 
 ### State of the tree
 
@@ -35,6 +36,35 @@ locally) and/or **Groq**, a live OpenAI run, and a web timeline.
 | MongoStore (document-DB backend) | `src/kinescope/store/mongo.py` | ✅ M5 |
 | CLI (`ls`, `show`, `diff`, `ui`) | `src/kinescope/cli.py` | ✅ M4 · `fork` runner → later |
 | Textual TUI (3-pane scrub/detail/diff + fork) | `src/kinescope/tui/` | ✅ M4 |
+
+---
+
+## 2026-07-16 — Live Ollama run: a second real-run artifact (free, local)
+
+Closed the review's #1 remaining item — the multi-provider claim is now **live-proven twice**,
+not once.
+
+- **`adapters/ollama.py`** — Ollama serves an OpenAI-compatible `/v1/chat/completions`, so the
+  response parsing is *reused* from the OpenAI adapter; only `gen_ai.system` differs
+  (`"ollama"`). Dispatch is by Ollama's well-known **port 11434** (the host is just
+  `localhost`, so host-matching can't work) — see `adapters/base.py`. That reuse is the point:
+  the schema absorbs a new *runtime* with no new parsing, while Gemini proved it absorbs new
+  *wire shapes*.
+- **`examples/live_ollama_agent.py` + `live_ollama_record.py`** — records a real
+  `qwen2.5:1.5b-instruct` call via the **OpenAI SDK pointed at Ollama** (the idiomatic usage),
+  so this also shows the engine intercepting a real SDK against a local model. Committed
+  `examples/fixtures/real_ollama_run.zip` (1,829 bytes).
+- **The run:** the model answered `'Earth.'`; offline replay reproduced it byte-for-byte with
+  **0 divergences** against a forbidden transport. Recorded meta: `gen_ai.system=ollama`,
+  `model=qwen2.5:1.5b-instruct`, real token counts (40 in / 3 out), `finish_reasons=['stop']`,
+  `authorization` redacted.
+
+**Why this matters:** it's reality-contact with **zero cost and zero flakiness** — no key, no
+quota, no network — so unlike the Gemini capture (still blocked on free-tier `429`) it will
+keep working in CI forever. `tests/test_real_run.py` now has **2 passing** real-run replays
+(Anthropic, Ollama) and 1 skipped (Gemini, until its bundle exists).
+
+**Verified:** `pytest` → **64 passed, 1 skipped**; `ruff` clean; `mypy` clean (27 files).
 
 ---
 

@@ -128,7 +128,13 @@ Ordered roughly by value. None of these are blockers; the core product + reach a
   pending — the free-tier key hit `429` (quota) both in CI and on the author's machine on
   2026-07-10. Retry when quota resets → commits `examples/fixtures/real_gemini_run.zip`, and
   `tests/test_real_run.py::test_real_gemini_run_replays_offline` activates (currently skipped).
-- [ ] **Ollama run (local, free, no key).** Ollama is already installed on the author's box;
+- [x] **Ollama run (local, free, no key).** **Done 2026-07-16** — `examples/live_ollama_record.py`
+  records a real `qwen2.5:1.5b-instruct` call through the OpenAI SDK against Ollama's
+  compatible endpoint and commits `examples/fixtures/real_ollama_run.zip`;
+  `tests/test_real_run.py::test_real_ollama_run_replays_offline` reproduces it offline (0
+  divergences, forbidden transport). `adapters/ollama.py` dispatches by Ollama's port (11434)
+  and reuses the OpenAI parsing with `gen_ai.system="ollama"`. Kinescope now has **two** live
+  real-run artifacts (hosted Anthropic + local Ollama). _Original note:_ Ollama is installed on the author's box;
   it serves an OpenAI-compatible endpoint at `http://localhost:11434/v1/chat/completions`.
   Point a client at it via `kinescope.http_client()`, record + replay. Add host-based dispatch so
   a `localhost` OpenAI-shaped call normalizes via the OpenAI adapter. Cheapest way to get a
