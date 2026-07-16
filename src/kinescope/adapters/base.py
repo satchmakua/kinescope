@@ -18,9 +18,17 @@ def safe_json(data: bytes) -> Any:
         return None
 
 
+OLLAMA_PORT = 11434  # Ollama's well-known local port
+
+
 def normalize_meta(url: str, req_body: Any, resp_bytes: bytes) -> dict[str, Any]:
     """Best-effort `gen_ai.*` metadata for the timeline (never raises)."""
-    host = (urlsplit(url).hostname or "").lower()
+    split = urlsplit(url)
+    host = (split.hostname or "").lower()
+    if "ollama" in host or split.port == OLLAMA_PORT:
+        from .ollama import normalize as ollama_normalize
+
+        return ollama_normalize(req_body, resp_bytes)  # local, OpenAI-compatible wire
     if "anthropic" in host:
         from .anthropic import normalize
 

@@ -45,6 +45,19 @@ def test_gemini_normalization_reads_model_from_url():
     assert meta["gen_ai.response.finish_reasons"] == ["STOP"]
 
 
+def test_ollama_dispatches_by_port_and_reuses_openai_parsing():
+    meta = normalize_meta(
+        "http://localhost:11434/v1/chat/completions",  # localhost — identified by Ollama's port
+        {"model": "qwen2.5:1.5b-instruct"},
+        b'{"usage":{"prompt_tokens":40,"completion_tokens":3},"choices":[{"finish_reason":"stop"}]}',
+    )
+    assert meta["gen_ai.system"] == "ollama"  # not "openai", despite the compatible wire
+    assert meta["gen_ai.request.model"] == "qwen2.5:1.5b-instruct"
+    assert meta["gen_ai.usage.input_tokens"] == 40
+    assert meta["gen_ai.usage.output_tokens"] == 3
+    assert meta["gen_ai.response.finish_reasons"] == ["stop"]
+
+
 def test_unknown_host_is_best_effort_not_an_error():
     meta = normalize_meta("https://llm.example.com/v1/generate", {"model": "foo-1"}, b"not json")
     assert meta["gen_ai.system"] == "llm.example.com"
