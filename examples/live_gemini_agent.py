@@ -13,7 +13,11 @@ import httpx
 
 import kinescope
 
-MODEL = "gemini-2.0-flash"  # a standard free-tier model; swap for any from `models.list` if needed
+# Pinned to a concrete 3.x model with real free-tier quota. Note: the legacy flash models
+# (gemini-2.0-flash, gemini-2.5-flash) return 429 "limit: 0" or 404 "no longer available to
+# new users" on new keys — they're off the free tier, so retrying them never helps. Avoid the
+# floating `-latest` aliases and `-preview` ids here so the recorded artifact stays regenerable.
+MODEL = "gemini-3.1-flash-lite"
 PROMPT = "In one word, what planet do humans live on?"
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
 
@@ -25,7 +29,7 @@ def run(inner: httpx.BaseTransport | None = None) -> str:
     key = os.environ.get("GEMINI_API_KEY") or "offline-replay-no-key-needed"
     body = {
         "contents": [{"role": "user", "parts": [{"text": PROMPT}]}],
-        "generationConfig": {"maxOutputTokens": 32},
+        "generationConfig": {"maxOutputTokens": 64},
     }
     resp = client.post(URL, headers={"x-goog-api-key": key}, json=body)
     resp.raise_for_status()
