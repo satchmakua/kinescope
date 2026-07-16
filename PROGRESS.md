@@ -5,14 +5,13 @@ this is the working memory between build sessions. The forward-looking plan and
 acceptance tests live in [ROADMAP.md](ROADMAP.md); this is the backward-looking "what
 got done and why" companion.
 
-**Current phase:** Complete for practical purposes. M0–M4 + H1 + H2 + H3 + M5 done, plus **two
-real recorded runs** that reproduce offline (hosted **Anthropic** + local **Ollama**), a **CLI
-agent runner** (`record`/`replay`/`fork -- <cmd>`), and **four providers** (Anthropic, OpenAI,
-Gemini, Ollama). 64 tests + 1 skipped, ruff/mypy clean, human-verified. A `Makefile`
-(`make demo`/`test`/`lint`) is committed. **Remaining (all optional, tracked in ROADMAP →
-_Deferred / later_):** live Gemini capture (recorder built; free-tier `429` — retry when quota
-resets), **Groq**, a live OpenAI run, and a web timeline. The real gap is now **distribution**
-(PyPI, users), not engineering.
+**Current phase:** Complete for practical purposes. M0–M4 + H1 + H2 + H3 + M5 done, plus **three
+real recorded runs** that reproduce offline (hosted **Anthropic**, hosted **Gemini**, local
+**Ollama**), a **CLI agent runner** (`record`/`replay`/`fork -- <cmd>`), and **four providers**
+(Anthropic, OpenAI, Gemini, Ollama). **65 tests, no skips**, ruff/mypy clean, human-verified. A
+`Makefile` (`make demo`/`test`/`lint`) is committed. **Remaining (all optional, tracked in
+ROADMAP → _Deferred / later_):** **Groq**, a live OpenAI run, and a web timeline. The real gap
+is now **distribution** (PyPI, users), not engineering.
 
 ### State of the tree
 
@@ -36,6 +35,41 @@ resets), **Groq**, a live OpenAI run, and a web timeline. The real gap is now **
 | MongoStore (document-DB backend) | `src/kinescope/store/mongo.py` | ✅ M5 |
 | CLI (`ls`, `show`, `diff`, `ui`) | `src/kinescope/cli.py` | ✅ M4 · `fork` runner → later |
 | Textual TUI (3-pane scrub/detail/diff + fork) | `src/kinescope/tui/` | ✅ M4 |
+
+---
+
+## 2026-07-16 — Live Gemini run: the last skip is gone
+
+`examples/fixtures/real_gemini_run.zip` is committed and
+`test_real_gemini_run_replays_offline` passes — **65 tests, no skips**. Three providers now
+have genuine recorded runs that reproduce offline: hosted **Anthropic**, hosted **Gemini**,
+local **Ollama**.
+
+**The 429 was a misdiagnosis, and the error body proved it.** Every prior attempt (CI *and*
+the author's machine) failed with `429`, which reads as "rate-limited, wait it out." It
+wasn't. Reading the response body:
+
+- `gemini-2.0-flash` → `Quota exceeded ... generate_content_free_tier_requests, limit: 0` —
+  **limit zero**, i.e. this key has *no* free-tier quota for that model. Waiting could never
+  have fixed it, despite the API's own "Please retry in 56s" hint.
+- `gemini-2.5-flash` → `404: "This model is no longer available to new users."`
+
+Google has moved the legacy flash models off the free tier. Pinned **`gemini-3.1-flash-lite`**
+(a concrete 3.x model with real free quota — verified alongside `gemini-flash-lite-latest` and
+`gemini-3-flash-preview`, which also work; `gemini-3.5-flash`/`gemini-flash-latest` were 503
+"high demand"). Recorded first try. Deliberately avoided the floating `-latest` aliases and
+`-preview` ids so the artifact stays regenerable.
+
+**Lesson worth keeping:** on a `429`, read the *body* — Google names the exact quota metric and
+its limit. `limit: 0` means "wrong model for this tier," not "slow down." Status code alone
+sent us chasing a nonexistent rate limit across two networks and several days.
+
+**The recorded run:** `gemini-3.1-flash-lite` said `'Earth'`; offline replay reproduced it
+byte-for-byte, 0 divergences. Meta: `gen_ai.system=gcp.gemini`, model **pulled from the URL
+path** (Gemini's distinctive shape), real tokens (12 in / 1 out), `finish_reasons=['STOP']`,
+`x-goog-api-key` redacted; bundle scanned — no `AIza` token.
+
+**Verified:** `pytest` → **65 passed, 0 skipped**; `ruff` clean; `mypy` clean (27 files).
 
 ---
 

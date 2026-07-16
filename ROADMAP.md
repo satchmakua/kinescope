@@ -124,10 +124,13 @@ feels effortless, Kinescope is good.
 
 Ordered roughly by value. None of these are blockers; the core product + reach are done and verified.
 
-- [ ] **Live Gemini run.** Recorder is built (`examples/live_gemini_record.py`); the capture is
-  pending — the free-tier key hit `429` (quota) both in CI and on the author's machine on
-  2026-07-10. Retry when quota resets → commits `examples/fixtures/real_gemini_run.zip`, and
-  `tests/test_real_run.py::test_real_gemini_run_replays_offline` activates (currently skipped).
+- [x] **Live Gemini run.** **Done 2026-07-16.** `examples/fixtures/real_gemini_run.zip` is
+  committed and `test_real_gemini_run_replays_offline` now passes — the suite has **no skips**.
+  *Root cause of the earlier failures:* not quota exhaustion at all. The 429 body reported
+  `limit: 0` for `gemini-2.0-flash`, and `gemini-2.5-flash` 404'd with "no longer available to
+  new users" — the legacy flash models are **off the free tier**, so retrying them could never
+  work. Pinned `gemini-3.1-flash-lite` (a concrete 3.x model with real free-tier quota) and it
+  recorded first try. Lesson: read the 429 *body* — Google names the quota and its limit.
 - [x] **Ollama run (local, free, no key).** **Done 2026-07-16** — `examples/live_ollama_record.py`
   records a real `qwen2.5:1.5b-instruct` call through the OpenAI SDK against Ollama's
   compatible endpoint and commits `examples/fixtures/real_ollama_run.zip`;
