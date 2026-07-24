@@ -1,7 +1,5 @@
 # Kinescope
 
-*(formerly Eidetic)*
-
 > `rr` for nondeterministic AI agents — capture every nondeterministic input so any run replays deterministically, *and* can be branched: "what if the model had chosen the other tool here?"
 
 Kinescope records the **nondeterministic frontier** of an agent (LLM calls, tool calls, clock, RNG/UUID, retrieval), replays any run **deterministically** from the trace, and lets you **fork** at any step — override one recorded event and resume *live* — to explore counterfactuals. A Textual timeline lets you scrub steps, inspect message/tool I/O and state diffs, and fork with one key.
