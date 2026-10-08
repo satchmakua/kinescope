@@ -31,7 +31,7 @@ from .model import Event, Run, Snapshot
 from .session import DivergenceError, Session, active_session
 from .store import LocalStore, TraceStore
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 def ui(
